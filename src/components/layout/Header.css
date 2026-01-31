@@ -1,0 +1,304 @@
+.header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: var(--sidebar-width);
+    height: var(--header-height);
+    background: var(--white);
+    border-bottom: 1px solid var(--neutral-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-6);
+    z-index: 90;
+    transition: left var(--transition-normal);
+}
+
+.header.collapsed {
+    left: var(--sidebar-collapsed);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex: 1;
+}
+
+.menu-btn {
+    display: none;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-100);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--neutral-600);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.menu-btn:hover {
+    background: var(--neutral-200);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.header-dropdown {
+    position: relative;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-100);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--neutral-600);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.icon-btn:hover {
+    background: var(--neutral-200);
+    color: var(--neutral-900);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 16px;
+    height: 16px;
+    background: var(--danger);
+    color: var(--white);
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--neutral-100);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.profile-btn:hover {
+    background: var(--neutral-200);
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+}
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.profile-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--neutral-900);
+}
+
+.profile-role {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-500);
+}
+
+/* Dropdown Menus */
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + var(--spacing-2));
+    right: 0;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--neutral-200);
+    min-width: 200px;
+    z-index: 100;
+    animation: dropdownFade var(--transition-fast);
+}
+
+@keyframes dropdownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notifications-dropdown {
+    width: 360px;
+}
+
+.dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+.dropdown-header h4 {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.text-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+}
+
+.text-btn:hover {
+    text-decoration: underline;
+}
+
+.dropdown-body {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--neutral-100);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.notification-item:hover {
+    background: var(--neutral-50);
+}
+
+.notification-item.warning {
+    border-left: 3px solid var(--warning);
+}
+
+.notification-item.info {
+    border-left: 3px solid var(--info);
+}
+
+.notification-item.success {
+    border-left: 3px solid var(--success);
+}
+
+.notification-content p {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-700);
+    margin-bottom: var(--spacing-1);
+}
+
+.notification-time {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-400);
+}
+
+.dropdown-footer {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-top: 1px solid var(--neutral-200);
+    text-align: center;
+}
+
+.dropdown-footer a {
+    font-size: var(--font-size-sm);
+    color: var(--primary);
+}
+
+.dropdown-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Profile Dropdown */
+.profile-dropdown {
+    padding: var(--spacing-2);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-3);
+    border: none;
+    background: none;
+    font-size: var(--font-size-sm);
+    color: var(--neutral-700);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.dropdown-item:hover {
+    background: var(--neutral-100);
+}
+
+.dropdown-item.logout:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.dropdown-divider {
+    margin: var(--spacing-2) 0;
+    border: none;
+    border-top: 1px solid var(--neutral-200);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .header {
+        left: 0;
+    }
+
+    .menu-btn {
+        display: flex;
+    }
+
+    .search-input-wrapper {
+        max-width: none;
+        flex: 1;
+    }
+
+    .profile-info {
+        display: none;
+    }
+
+    .profile-btn svg:last-child {
+        display: none;
+    }
+}

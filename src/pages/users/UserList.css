@@ -1,0 +1,45 @@
+.users-page {
+    max-width: 1200px;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-weight: 500;
+    color: var(--neutral-900);
+}
+
+.user-email {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-500);
+}
+
+.dept-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--neutral-600);
+}

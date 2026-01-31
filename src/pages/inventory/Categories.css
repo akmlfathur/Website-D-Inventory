@@ -1,0 +1,227 @@
+.categories-page {
+    max-width: 1200px;
+}
+
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-4);
+}
+
+.category-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--neutral-200);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.category-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-200);
+}
+
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--spacing-4);
+}
+
+.category-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.category-actions {
+    position: relative;
+}
+
+.category-body {
+    padding: 0 var(--spacing-4);
+}
+
+.category-body h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--neutral-900);
+    margin-bottom: var(--spacing-2);
+}
+
+.category-body p {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-500);
+    line-height: 1.5;
+}
+
+.category-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-4);
+    border-top: 1px solid var(--neutral-100);
+}
+
+.item-count {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--neutral-500);
+    font-size: var(--font-size-sm);
+}
+
+/* Locations Page */
+.locations-page {
+    max-width: 1200px;
+}
+
+.locations-tree {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.location-item {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--neutral-200);
+    overflow: hidden;
+}
+
+.location-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.location-header:hover {
+    background: var(--neutral-50);
+}
+
+.location-expand {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-100);
+    border-radius: var(--radius-md);
+    color: var(--neutral-600);
+    transition: all var(--transition-fast);
+}
+
+.location-expand.expanded {
+    background: var(--primary-100);
+    color: var(--primary);
+    transform: rotate(90deg);
+}
+
+.location-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-50);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+}
+
+.location-info {
+    flex: 1;
+}
+
+.location-info h4 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--neutral-900);
+}
+
+.location-info p {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-500);
+}
+
+.location-stats {
+    display: flex;
+    gap: var(--spacing-4);
+}
+
+.location-stat {
+    text-align: center;
+}
+
+.location-stat .value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--neutral-900);
+}
+
+.location-stat .label {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-500);
+}
+
+.location-children {
+    padding: 0 var(--spacing-4) var(--spacing-4);
+    padding-left: calc(var(--spacing-4) + 40px);
+}
+
+.location-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3);
+    background: var(--neutral-50);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-2);
+}
+
+.location-child:last-child {
+    margin-bottom: 0;
+}
+
+.location-child-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.location-child-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--white);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neutral-600);
+}
+
+.location-child-info span {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.location-child .badge {
+    font-size: var(--font-size-xs);
+}
+
+@media (max-width: 768px) {
+    .categories-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .location-stats {
+        display: none;
+    }
+}

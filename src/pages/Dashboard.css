@@ -1,0 +1,191 @@
+.dashboard {
+    max-width: 1400px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.stat-value-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+}
+
+.trend.up {
+    color: #059669;
+    background: var(--success-light);
+}
+
+.trend.down {
+    color: #DC2626;
+    background: var(--danger-light);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-6);
+    margin-bottom: var(--spacing-6);
+}
+
+.chart-card .card-header {
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+}
+
+.chart-legend {
+    display: flex;
+    gap: var(--spacing-4);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-sm);
+    color: var(--neutral-600);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+}
+
+.legend-item.masuk .legend-dot {
+    background: #10B981;
+}
+
+.legend-item.keluar .legend-dot {
+    background: #6366F1;
+}
+
+.chart-container {
+    padding-top: var(--spacing-4);
+}
+
+/* Notifications */
+.notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    padding: var(--spacing-2);
+}
+
+.notifications-card .notification-item {
+    display: flex;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast);
+    cursor: pointer;
+}
+
+.notifications-card .notification-item:hover {
+    background: var(--neutral-50);
+}
+
+.notification-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.notification-item.warning .notification-indicator {
+    background: var(--warning);
+}
+
+.notification-item.info .notification-indicator {
+    background: var(--info);
+}
+
+.notification-item.success .notification-indicator {
+    background: var(--success);
+}
+
+.notification-content p {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-700);
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-400);
+    margin-top: var(--spacing-1);
+    display: block;
+}
+
+/* Transactions Table */
+.transactions-card {
+    margin-bottom: var(--spacing-6);
+}
+
+.item-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.item-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--neutral-100);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neutral-600);
+}
+
+.header-actions {
+    display: flex;
+    gap: var(--spacing-3);
+}
+
+/* Responsive */
+@media (max-width: 1280px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .header-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
