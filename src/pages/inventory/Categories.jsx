@@ -82,7 +82,7 @@ export default function Categories() {
                     <div className="breadcrumb">
                         <Link to="/">Home</Link>
                         <span>/</span>
-                        <Link to="/inventory">Barang</Link>
+                        <Link to="/inventory">D'Inventory</Link>
                         <span>/</span>
                         <span>Kategori</span>
                     </div>

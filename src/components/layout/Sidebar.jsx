@@ -6,10 +6,13 @@ import {
   ArrowUpFromLine,
   FileText,
   ClipboardList,
+  ClipboardCheck,
+  BarChart3,
   Users,
   Settings,
   LogOut,
   ChevronLeft,
+  ChevronRight,
   Box,
   Layers,
   MapPin,
@@ -30,7 +33,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       path: '/',
     },
     {
-      label: 'D\'Inventory',
+      label: 'Barang',
       icon: Package,
       path: '/inventory',
       children: [
@@ -53,7 +56,20 @@ export default function Sidebar({ collapsed, onToggle }) {
         { label: 'Request Pending', path: '/transactions/requests', icon: ClipboardList },
       ],
     });
+
+    menuItems.push({
+      label: 'Stock Opname',
+      icon: ClipboardCheck,
+      path: '/stock-opname',
+    });
   }
+
+  // Add reports menu
+  menuItems.push({
+    label: 'Laporan',
+    icon: BarChart3,
+    path: '/reports',
+  });
 
   // Add users menu for admin only
   if (isAdmin()) {
@@ -91,8 +107,8 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
           {!collapsed && <span className="logo-text">D'Inventory</span>}
         </div>
-        <button className="toggle-btn" onClick={onToggle}>
-          <ChevronLeft size={20} />
+        <button className="toggle-btn" onClick={onToggle} title={collapsed ? 'Buka menu' : 'Tutup menu'}>
+          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
       </div>
 

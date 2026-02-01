@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, Menu, User, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { Bell, Menu, User, ChevronDown, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import './Header.css';
 
@@ -46,14 +46,6 @@ export default function Header({ onMenuClick, collapsed }) {
                 <button className="menu-btn" onClick={onMenuClick}>
                     <Menu size={20} />
                 </button>
-                <div className="search-input-wrapper">
-                    <Search size={18} className="search-icon" />
-                    <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Cari barang, SKU, atau serial number..."
-                    />
-                </div>
             </div>
 
             <div className="header-right">

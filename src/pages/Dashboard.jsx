@@ -6,6 +6,7 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     TrendingUp,
+    ShoppingCart,
 } from 'lucide-react';
 import {
     AreaChart,
@@ -111,9 +112,13 @@ export default function Dashboard() {
                     <p className="text-muted">Selamat datang kembali, Admin! 👋</p>
                 </div>
                 <div className="header-actions">
-                    <button className="btn btn-primary">
+                    <button className="btn btn-secondary">
                         <Package size={18} />
                         Tambah Barang
+                    </button>
+                    <button className="btn btn-primary btn-pos">
+                        <ShoppingCart size={18} />
+                        POS
                     </button>
                 </div>
             </div>
