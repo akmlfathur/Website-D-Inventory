@@ -56,12 +56,6 @@ export default function Sidebar({ collapsed, onToggle }) {
         { label: 'Request Pending', path: '/transactions/requests', icon: ClipboardList },
       ],
     });
-
-    menuItems.push({
-      label: 'Stock Opname',
-      icon: ClipboardCheck,
-      path: '/stock-opname',
-    });
   }
 
   // Add reports menu
@@ -71,8 +65,14 @@ export default function Sidebar({ collapsed, onToggle }) {
     path: '/reports',
   });
 
-  // Add users menu for admin only
+  // Add admin-only menus
   if (isAdmin()) {
+    menuItems.push({
+      label: 'Stock Opname',
+      icon: ClipboardCheck,
+      path: '/stock-opname',
+    });
+
     menuItems.push({
       label: 'Users',
       icon: Users,

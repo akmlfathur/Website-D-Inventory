@@ -24,8 +24,8 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const success = await login(formData.email, formData.password);
-        if (success) {
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
             navigate('/');
         }
     };
@@ -33,8 +33,8 @@ export default function Login() {
     const fillDemo = (type) => {
         const emails = {
             admin: 'admin@company.com',
-            staff: 'staff@company.com',
-            user: 'user@company.com',
+            staff: 'budi@company.com',
+            user: 'rina@company.com',
         };
         setFormData({
             email: emails[type],
@@ -154,14 +154,14 @@ export default function Login() {
                                 <span className="demo-dot blue"></span>
                                 <span>Staff</span>
                             </div>
-                            <code>staff@company.com</code>
+                            <code>budi@company.com</code>
                         </button>
                         <button type="button" className="demo-item" onClick={() => fillDemo('user')}>
                             <div className="demo-role">
                                 <span className="demo-dot green"></span>
-                                <span>User</span>
+                                <span>Employee</span>
                             </div>
-                            <code>user@company.com</code>
+                            <code>rina@company.com</code>
                         </button>
                     </div>
                 </div>

@@ -1,141 +1,77 @@
 import { create } from 'zustand';
+import { transactionService, requestService } from '../services';
 
 const useTransactionStore = create((set, get) => ({
     // State
     transactions: [],
     requests: [],
+    stats: null,
+    requestStats: null,
     isLoading: false,
     error: null,
+    pagination: {
+        page: 1,
+        per_page: 10,
+        total: 0,
+    },
 
-    // Fetch transactions
-    fetchTransactions: async () => {
+    // Fetch transactions from API
+    fetchTransactions: async (params = {}) => {
         set({ isLoading: true, error: null });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await transactionService.getAll(params);
 
-            const mockTransactions = [
-                {
-                    id: 1,
-                    type: 'inbound',
-                    item: { id: 1, name: 'Laptop Dell XPS 15', sku: 'LPT-001' },
-                    quantity: 5,
-                    user: null,
-                    staff: { id: 1, name: 'Admin User' },
-                    date: '2024-12-20T14:30:00',
-                    notes: 'Pembelian dari supplier',
-                    supplier: 'PT Dell Indonesia',
-                    invoiceNo: 'INV-2024-001',
-                },
-                {
-                    id: 2,
-                    type: 'outbound',
-                    item: { id: 1, name: 'Laptop Dell XPS 15', sku: 'LPT-001' },
-                    quantity: 1,
-                    user: { id: 3, name: 'Budi Santoso', department: 'Marketing' },
-                    staff: { id: 1, name: 'Admin User' },
-                    date: '2024-12-19T09:15:00',
-                    notes: 'Peminjaman untuk project',
-                    purpose: 'Project Q1 2025',
-                },
-                {
-                    id: 3,
-                    type: 'inbound',
-                    item: { id: 2, name: 'Kertas A4 80gsm', sku: 'ATK-042' },
-                    quantity: 50,
-                    user: null,
-                    staff: { id: 2, name: 'Staff Gudang' },
-                    date: '2024-12-18T11:00:00',
-                    notes: 'Restok bulanan',
-                    supplier: 'Toko ATK Makmur',
-                    invoiceNo: 'INV-2024-002',
-                },
-            ];
-
-            set({ transactions: mockTransactions, isLoading: false });
+            if (response.success) {
+                set({
+                    transactions: response.data.data || response.data,
+                    isLoading: false
+                });
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
         }
     },
 
-    // Fetch requests
-    fetchRequests: async () => {
+    // Fetch requests from API
+    fetchRequests: async (params = {}) => {
         set({ isLoading: true, error: null });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await requestService.getAll(params);
 
-            const mockRequests = [
-                {
-                    id: 'REQ-2024-089',
-                    status: 'pending',
-                    user: {
-                        id: 3,
-                        name: 'Budi Santoso',
-                        department: 'IT Department',
-                        email: 'budi@company.com',
-                    },
-                    item: { id: 1, name: 'Laptop Dell XPS 15', sku: 'LPT-001' },
-                    quantity: 1,
-                    reason: 'Untuk project development Q1 2025',
-                    requestDate: '2024-12-20T14:30:00',
-                    approvedBy: null,
-                    approvedAt: null,
-                },
-                {
-                    id: 'REQ-2024-088',
-                    status: 'pending',
-                    user: {
-                        id: 4,
-                        name: 'Rina Dewi',
-                        department: 'Marketing',
-                        email: 'rina@company.com',
-                    },
-                    item: { id: 2, name: 'Kertas A4 80gsm', sku: 'ATK-042' },
-                    quantity: 10,
-                    reason: 'Untuk cetak materi presentasi client',
-                    requestDate: '2024-12-20T11:15:00',
-                    approvedBy: null,
-                    approvedAt: null,
-                },
-                {
-                    id: 'REQ-2024-087',
-                    status: 'approved',
-                    user: {
-                        id: 5,
-                        name: 'Ahmad Fauzi',
-                        department: 'Finance',
-                        email: 'ahmad@company.com',
-                    },
-                    item: { id: 5, name: 'Mouse Wireless Logitech', sku: 'ELK-028' },
-                    quantity: 2,
-                    reason: 'Pengganti mouse rusak tim finance',
-                    requestDate: '2024-12-19T16:45:00',
-                    approvedBy: { id: 1, name: 'Admin User' },
-                    approvedAt: '2024-12-19T17:00:00',
-                },
-                {
-                    id: 'REQ-2024-086',
-                    status: 'rejected',
-                    user: {
-                        id: 6,
-                        name: 'Dedi Prasetyo',
-                        department: 'Operations',
-                        email: 'dedi@company.com',
-                    },
-                    item: { id: 1, name: 'Laptop Dell XPS 15', sku: 'LPT-001' },
-                    quantity: 3,
-                    reason: 'Untuk tim baru operasional',
-                    requestDate: '2024-12-17T14:20:00',
-                    rejectedBy: { id: 1, name: 'Admin User' },
-                    rejectedAt: '2024-12-17T15:00:00',
-                    rejectReason: 'Stok tidak mencukupi untuk 3 unit',
-                },
-            ];
-
-            set({ requests: mockRequests, isLoading: false });
+            if (response.success) {
+                set({
+                    requests: response.data.data || response.data,
+                    isLoading: false
+                });
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+        }
+    },
+
+    // Fetch transaction stats
+    fetchTransactionStats: async (params = {}) => {
+        try {
+            const response = await transactionService.getStats(params);
+            if (response.success) {
+                set({ stats: response.data });
+            }
+        } catch (error) {
+            console.error('Failed to fetch transaction stats:', error);
+        }
+    },
+
+    // Fetch request stats
+    fetchRequestStats: async () => {
+        try {
+            const response = await requestService.getStats();
+            if (response.success) {
+                set({ requestStats: response.data });
+            }
+        } catch (error) {
+            console.error('Failed to fetch request stats:', error);
         }
     },
 
@@ -144,24 +80,19 @@ const useTransactionStore = create((set, get) => ({
         set({ isLoading: true });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            const newTransaction = {
-                id: Date.now(),
+            const response = await transactionService.create({
                 type: 'inbound',
                 ...data,
-                date: new Date().toISOString(),
-            };
+            });
 
-            set((state) => ({
-                transactions: [newTransaction, ...state.transactions],
-                isLoading: false,
-            }));
-
-            return { success: true, transaction: newTransaction };
+            if (response.success) {
+                await get().fetchTransactions();
+                set({ isLoading: false });
+                return { success: true, transaction: response.data };
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
-            return { success: false, error: error.message };
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
@@ -170,87 +101,85 @@ const useTransactionStore = create((set, get) => ({
         set({ isLoading: true });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            const newTransaction = {
-                id: Date.now(),
+            const response = await transactionService.create({
                 type: 'outbound',
                 ...data,
-                date: new Date().toISOString(),
-            };
+            });
 
-            set((state) => ({
-                transactions: [newTransaction, ...state.transactions],
-                isLoading: false,
-            }));
-
-            return { success: true, transaction: newTransaction };
+            if (response.success) {
+                await get().fetchTransactions();
+                set({ isLoading: false });
+                return { success: true, transaction: response.data };
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
-            return { success: false, error: error.message };
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+            return { success: false, error: error.response?.data?.message || error.message };
+        }
+    },
+
+    // Create request
+    createRequest: async (data) => {
+        set({ isLoading: true });
+
+        try {
+            const response = await requestService.create(data);
+
+            if (response.success) {
+                await get().fetchRequests();
+                set({ isLoading: false });
+                return { success: true, request: response.data };
+            }
+        } catch (error) {
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
     // Approve request
-    approveRequest: async (requestId, approver) => {
+    approveRequest: async (requestId) => {
         set({ isLoading: true });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await requestService.approve(requestId);
 
-            set((state) => ({
-                requests: state.requests.map((req) =>
-                    req.id === requestId
-                        ? {
-                            ...req,
-                            status: 'approved',
-                            approvedBy: approver,
-                            approvedAt: new Date().toISOString(),
-                        }
-                        : req
-                ),
-                isLoading: false,
-            }));
-
-            return { success: true };
+            if (response.success) {
+                await get().fetchRequests();
+                set({ isLoading: false });
+                return { success: true };
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
-            return { success: false, error: error.message };
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
     // Reject request
-    rejectRequest: async (requestId, rejector, reason) => {
+    rejectRequest: async (requestId, reason) => {
         set({ isLoading: true });
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await requestService.reject(requestId, reason);
 
-            set((state) => ({
-                requests: state.requests.map((req) =>
-                    req.id === requestId
-                        ? {
-                            ...req,
-                            status: 'rejected',
-                            rejectedBy: rejector,
-                            rejectedAt: new Date().toISOString(),
-                            rejectReason: reason,
-                        }
-                        : req
-                ),
-                isLoading: false,
-            }));
-
-            return { success: true };
+            if (response.success) {
+                await get().fetchRequests();
+                set({ isLoading: false });
+                return { success: true };
+            }
         } catch (error) {
-            set({ error: error.message, isLoading: false });
-            return { success: false, error: error.message };
+            set({ error: error.response?.data?.message || error.message, isLoading: false });
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
-    // Get request counts by status
+    // Get request counts by status (from stats)
     getRequestCounts: () => {
-        const { requests } = get();
+        const { requestStats, requests } = get();
+        if (requestStats) {
+            return {
+                all: Object.values(requestStats).reduce((a, b) => a + b, 0),
+                ...requestStats,
+            };
+        }
         return {
             all: requests.length,
             pending: requests.filter((r) => r.status === 'pending').length,

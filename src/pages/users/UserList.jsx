@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Users,
@@ -8,63 +8,67 @@ import {
     Edit,
     Trash2,
     Shield,
-    User,
-    Mail,
     Building,
+    Loader,
 } from 'lucide-react';
+import { userService } from '../../services';
 import './UserList.css';
 
-const usersData = [
-    {
-        id: 1,
-        name: 'Admin User',
-        email: 'admin@company.com',
-        role: 'super_admin',
-        department: 'IT',
-        status: 'active',
-        lastLogin: '2024-12-21T10:30:00',
-    },
-    {
-        id: 2,
-        name: 'Staff Gudang',
-        email: 'staff@company.com',
-        role: 'staff',
-        department: 'Warehouse',
-        status: 'active',
-        lastLogin: '2024-12-21T09:15:00',
-    },
-    {
-        id: 3,
-        name: 'Budi Santoso',
-        email: 'budi@company.com',
-        role: 'employee',
-        department: 'Marketing',
-        status: 'active',
-        lastLogin: '2024-12-20T14:45:00',
-    },
-    {
-        id: 4,
-        name: 'Rina Dewi',
-        email: 'rina@company.com',
-        role: 'employee',
-        department: 'Marketing',
-        status: 'active',
-        lastLogin: '2024-12-19T11:20:00',
-    },
-    {
-        id: 5,
-        name: 'Ahmad Fauzi',
-        email: 'ahmad@company.com',
-        role: 'employee',
-        department: 'Finance',
-        status: 'inactive',
-        lastLogin: '2024-12-10T08:00:00',
-    },
-];
-
 export default function UserList() {
+    const [users, setUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all');
     const [showActions, setShowActions] = useState(null);
+
+    const hasFetched = useRef(false);
+
+    // Fetch users on mount
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const res = await userService.getAll();
+            if (res.success) {
+                setUsers(res.data?.data || res.data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching users:', err);
+            setError('Gagal memuat data user');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDelete = async (userId) => {
+        if (!confirm('Apakah Anda yakin ingin menghapus user ini?')) return;
+
+        try {
+            const res = await userService.delete(userId);
+            if (res.success) {
+                setUsers(prev => prev.filter(u => u.id !== userId));
+            }
+        } catch (err) {
+            console.error('Error deleting user:', err);
+            setError('Gagal menghapus user');
+        }
+    };
+
+    const filteredUsers = users.filter((user) => {
+        const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
 
     const getRoleBadge = (role) => {
         const roleMap = {
@@ -77,14 +81,16 @@ export default function UserList() {
     };
 
     const getStatusBadge = (status) => {
+        const isActive = status === 'active' || status !== 'inactive';
         return (
-            <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-                {status === 'active' ? 'Active' : 'Inactive'}
+            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>
+                {isActive ? 'Active' : 'Inactive'}
             </span>
         );
     };
 
     const formatDate = (dateStr) => {
+        if (!dateStr) return '-';
         const date = new Date(dateStr);
         return date.toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -96,6 +102,7 @@ export default function UserList() {
     };
 
     const getInitials = (name) => {
+        if (!name) return 'U';
         return name
             .split(' ')
             .map((n) => n[0])
@@ -127,6 +134,13 @@ export default function UserList() {
                 </div>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    {error}
+                </div>
+            )}
+
             {/* Search & Filter */}
             <div className="card filter-card">
                 <div className="filter-row">
@@ -140,16 +154,16 @@ export default function UserList() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <select className="form-select" style={{ width: 'auto', minWidth: '150px' }}>
+                    <select
+                        className="form-select"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                    >
                         <option value="all">Semua Role</option>
                         <option value="super_admin">Super Admin</option>
                         <option value="staff">Staff</option>
                         <option value="employee">Employee</option>
-                    </select>
-                    <select className="form-select" style={{ width: 'auto', minWidth: '150px' }}>
-                        <option value="all">Semua Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
                     </select>
                 </div>
             </div>
@@ -169,57 +183,79 @@ export default function UserList() {
                             </tr>
                         </thead>
                         <tbody>
-                            {usersData.map((user) => (
-                                <tr key={user.id}>
-                                    <td>
-                                        <div className="user-cell">
-                                            <div className="user-avatar">
-                                                {getInitials(user.name)}
-                                            </div>
-                                            <div className="user-info">
-                                                <span className="user-name">{user.name}</span>
-                                                <span className="user-email">{user.email}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{getRoleBadge(user.role)}</td>
-                                    <td>
-                                        <div className="dept-cell">
-                                            <Building size={14} />
-                                            {user.department}
-                                        </div>
-                                    </td>
-                                    <td>{getStatusBadge(user.status)}</td>
-                                    <td className="text-muted text-sm">{formatDate(user.lastLogin)}</td>
-                                    <td className="actions-cell">
-                                        <div className="action-menu">
-                                            <button
-                                                className="btn btn-ghost btn-icon"
-                                                onClick={() => setShowActions(showActions === user.id ? null : user.id)}
-                                            >
-                                                <MoreVertical size={18} />
-                                            </button>
-                                            {showActions === user.id && (
-                                                <div className="action-dropdown">
-                                                    <button className="dropdown-item">
-                                                        <Edit size={16} />
-                                                        Edit User
-                                                    </button>
-                                                    <button className="dropdown-item">
-                                                        <Shield size={16} />
-                                                        Change Role
-                                                    </button>
-                                                    <hr className="dropdown-divider" />
-                                                    <button className="dropdown-item danger">
-                                                        <Trash2 size={16} />
-                                                        Delete User
-                                                    </button>
-                                                </div>
-                                            )}
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="6" className="text-center">
+                                        <div style={{ padding: 'var(--spacing-8)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+                                            <Loader size={20} className="animate-spin" />
+                                            <span>Memuat data user...</span>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : filteredUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="text-center text-muted">
+                                        {searchQuery || roleFilter !== 'all'
+                                            ? 'Tidak ada user yang cocok dengan filter'
+                                            : 'Tidak ada data user'}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id}>
+                                        <td>
+                                            <div className="user-cell">
+                                                <div className="user-avatar">
+                                                    {getInitials(user.name)}
+                                                </div>
+                                                <div className="user-info">
+                                                    <span className="user-name">{user.name}</span>
+                                                    <span className="user-email">{user.email}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{getRoleBadge(user.role)}</td>
+                                        <td>
+                                            <div className="dept-cell">
+                                                <Building size={14} />
+                                                {user.department || '-'}
+                                            </div>
+                                        </td>
+                                        <td>{getStatusBadge(user.status)}</td>
+                                        <td className="text-muted text-sm">{formatDate(user.last_login_at || user.updated_at)}</td>
+                                        <td className="actions-cell">
+                                            <div className="action-menu">
+                                                <button
+                                                    className="btn btn-ghost btn-icon"
+                                                    onClick={() => setShowActions(showActions === user.id ? null : user.id)}
+                                                >
+                                                    <MoreVertical size={18} />
+                                                </button>
+                                                {showActions === user.id && (
+                                                    <div className="action-dropdown">
+                                                        <button className="dropdown-item">
+                                                            <Edit size={16} />
+                                                            Edit User
+                                                        </button>
+                                                        <button className="dropdown-item">
+                                                            <Shield size={16} />
+                                                            Change Role
+                                                        </button>
+                                                        <hr className="dropdown-divider" />
+                                                        <button
+                                                            className="dropdown-item danger"
+                                                            onClick={() => handleDelete(user.id)}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                            Delete User
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

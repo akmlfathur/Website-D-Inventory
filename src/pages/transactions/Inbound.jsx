@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ArrowDownToLine,
@@ -9,27 +9,62 @@ import {
     Save,
     X,
     CheckCircle,
+    Loader,
 } from 'lucide-react';
 import { QRScanner } from '../../components/domain';
-import { useInventoryStore } from '../../store';
+import { itemService, locationService, transactionService } from '../../services';
 import './Transactions.css';
 
 export default function Inbound() {
-    const { items } = useInventoryStore();
+    const [items, setItems] = useState([]);
+    const [locations, setLocations] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [scannedData, setScannedData] = useState(null);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [error, setError] = useState(null);
+
+    const hasFetched = useRef(false);
 
     const [formData, setFormData] = useState({
-        item: '',
+        item_id: '',
         quantity: 1,
         supplier: '',
-        invoiceNo: '',
-        building: '',
-        aisle: '',
-        slot: '',
+        invoice_no: '',
+        location_id: '',
         notes: '',
     });
+
+    // Fetch items and locations on mount
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [itemsRes, locationsRes] = await Promise.all([
+                    itemService.getAll({ per_page: 100 }),
+                    locationService.getAll(),
+                ]);
+
+                if (itemsRes.success) {
+                    setItems(itemsRes.data.data || itemsRes.data || []);
+                }
+                if (locationsRes.success) {
+                    setLocations(locationsRes.data || []);
+                }
+            } catch (err) {
+                console.error('Error fetching data:', err);
+                setError('Gagal memuat data');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -47,16 +82,62 @@ export default function Inbound() {
             // Find item by SKU
             const foundItem = items.find(item => item.sku === sku);
             if (foundItem) {
-                setFormData(prev => ({ ...prev, item: foundItem.id.toString() }));
+                setFormData(prev => ({ ...prev, item_id: foundItem.id.toString() }));
             }
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Form submitted:', formData);
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
+            const res = await transactionService.create({
+                type: 'in',
+                item_id: parseInt(formData.item_id),
+                quantity: parseInt(formData.quantity),
+                supplier: formData.supplier || null,
+                invoice_no: formData.invoice_no || null,
+                location_id: formData.location_id ? parseInt(formData.location_id) : null,
+                notes: formData.notes || null,
+            });
+
+            if (res.success) {
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 3000);
+                // Reset form
+                setFormData({
+                    item_id: '',
+                    quantity: 1,
+                    supplier: '',
+                    invoice_no: '',
+                    location_id: '',
+                    notes: '',
+                });
+                setScannedData(null);
+            } else {
+                setError(res.message || 'Gagal menyimpan transaksi');
+            }
+        } catch (err) {
+            console.error('Error submitting transaction:', err);
+            setError('Gagal menyimpan transaksi');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            item_id: '',
+            quantity: 1,
+            supplier: '',
+            invoice_no: '',
+            location_id: '',
+            notes: '',
+        });
+        setScannedData(null);
+        setError(null);
     };
 
     return (
@@ -98,6 +179,13 @@ export default function Inbound() {
                     </div>
                 </div>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    {error}
+                </div>
+            )}
 
             <div className="transaction-grid">
                 {/* QR Scan Section */}
@@ -142,154 +230,141 @@ export default function Inbound() {
                         <h3>📝 Detail Barang Masuk</h3>
                     </div>
                     <div className="card-body">
-                        <form onSubmit={handleSubmit}>
-                            {/* Item Details */}
-                            <div className="form-section">
-                                <h4>
-                                    <Package size={18} />
-                                    Informasi Barang
-                                </h4>
-                                <div className="form-row">
+                        {isLoading ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-8)' }}>
+                                <Loader size={24} className="animate-spin" />
+                                <span style={{ marginLeft: 'var(--spacing-2)' }}>Memuat data...</span>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmit}>
+                                {/* Item Details */}
+                                <div className="form-section">
+                                    <h4>
+                                        <Package size={18} />
+                                        Informasi Barang
+                                    </h4>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Item *</label>
+                                            <select
+                                                name="item_id"
+                                                className="form-select"
+                                                value={formData.item_id}
+                                                onChange={handleChange}
+                                                required
+                                            >
+                                                <option value="">Pilih atau cari item...</option>
+                                                {items.map((item) => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.name} (Stok: {item.stock})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ maxWidth: '150px' }}>
+                                            <label className="form-label">Jumlah *</label>
+                                            <input
+                                                type="number"
+                                                name="quantity"
+                                                className="form-input"
+                                                value={formData.quantity}
+                                                onChange={handleChange}
+                                                min="1"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Supplier</label>
+                                            <input
+                                                type="text"
+                                                name="supplier"
+                                                className="form-input"
+                                                placeholder="Nama supplier..."
+                                                value={formData.supplier}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">No. Invoice</label>
+                                            <input
+                                                type="text"
+                                                name="invoice_no"
+                                                className="form-input"
+                                                placeholder="INV-XXXX"
+                                                value={formData.invoice_no}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Location */}
+                                <div className="form-section">
+                                    <h4>
+                                        <MapPin size={18} />
+                                        Lokasi Penyimpanan
+                                    </h4>
                                     <div className="form-group">
-                                        <label className="form-label">Item *</label>
+                                        <label className="form-label">Lokasi</label>
                                         <select
-                                            name="item"
+                                            name="location_id"
                                             className="form-select"
-                                            value={formData.item}
+                                            value={formData.location_id}
                                             onChange={handleChange}
-                                            required
                                         >
-                                            <option value="">Pilih atau cari item...</option>
-                                            <option value="1">Laptop Dell XPS 15</option>
-                                            <option value="2">Kertas A4 80gsm</option>
-                                            <option value="3">Printer HP LaserJet</option>
+                                            <option value="">Pilih lokasi...</option>
+                                            {locations.map((loc) => (
+                                                <option key={loc.id} value={loc.id}>
+                                                    {loc.name}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
-                                    <div className="form-group" style={{ maxWidth: '150px' }}>
-                                        <label className="form-label">Jumlah *</label>
-                                        <input
-                                            type="number"
-                                            name="quantity"
+                                </div>
+
+                                {/* Notes */}
+                                <div className="form-section">
+                                    <h4>
+                                        <FileText size={18} />
+                                        Catatan
+                                    </h4>
+                                    <div className="form-group">
+                                        <textarea
+                                            name="notes"
                                             className="form-input"
-                                            value={formData.quantity}
+                                            rows="3"
+                                            placeholder="Tambahkan catatan jika diperlukan..."
+                                            value={formData.notes}
                                             onChange={handleChange}
-                                            min="1"
-                                            required
                                         />
                                     </div>
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label className="form-label">Supplier</label>
-                                        <input
-                                            type="text"
-                                            name="supplier"
-                                            className="form-input"
-                                            placeholder="Nama supplier..."
-                                            value={formData.supplier}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">No. Invoice</label>
-                                        <input
-                                            type="text"
-                                            name="invoiceNo"
-                                            className="form-input"
-                                            placeholder="INV-XXXX"
-                                            value={formData.invoiceNo}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
+                                {/* Actions */}
+                                <div className="form-actions">
+                                    <button type="button" className="btn btn-secondary" onClick={resetForm}>
+                                        <X size={18} />
+                                        Batal
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader size={18} className="animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save size={18} />
+                                                Simpan Barang Masuk
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
-                            </div>
-
-                            {/* Location */}
-                            <div className="form-section">
-                                <h4>
-                                    <MapPin size={18} />
-                                    Lokasi Penyimpanan
-                                </h4>
-                                <div className="form-row form-row-3">
-                                    <div className="form-group">
-                                        <label className="form-label">Gedung *</label>
-                                        <select
-                                            name="building"
-                                            className="form-select"
-                                            value={formData.building}
-                                            onChange={handleChange}
-                                            required
-                                        >
-                                            <option value="">Pilih gedung</option>
-                                            <option value="gedung-a">Gedung A</option>
-                                            <option value="gedung-b">Gedung B</option>
-                                            <option value="gudang-utama">Gudang Utama</option>
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Rak *</label>
-                                        <select
-                                            name="aisle"
-                                            className="form-select"
-                                            value={formData.aisle}
-                                            onChange={handleChange}
-                                            required
-                                        >
-                                            <option value="">Pilih rak</option>
-                                            <option value="a1">Rak A1</option>
-                                            <option value="a2">Rak A2</option>
-                                            <option value="b1">Rak B1</option>
-                                            <option value="b2">Rak B2</option>
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Slot</label>
-                                        <select
-                                            name="slot"
-                                            className="form-select"
-                                            value={formData.slot}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="">Pilih slot</option>
-                                            <option value="1">Slot 1</option>
-                                            <option value="2">Slot 2</option>
-                                            <option value="3">Slot 3</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            <div className="form-section">
-                                <h4>
-                                    <FileText size={18} />
-                                    Catatan
-                                </h4>
-                                <div className="form-group">
-                                    <textarea
-                                        name="notes"
-                                        className="form-input"
-                                        rows="3"
-                                        placeholder="Tambahkan catatan jika diperlukan..."
-                                        value={formData.notes}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="form-actions">
-                                <button type="button" className="btn btn-secondary">
-                                    <X size={18} />
-                                    Batal
-                                </button>
-                                <button type="submit" className="btn btn-success">
-                                    <Save size={18} />
-                                    Simpan Transaksi
-                                </button>
-                            </div>
-                        </form>
+                            </form>
+                        )}
                     </div>
                 </div>
             </div>

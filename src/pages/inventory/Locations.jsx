@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     MapPin,
@@ -11,60 +11,64 @@ import {
     Edit,
     Trash2,
     MoreVertical,
+    Loader,
 } from 'lucide-react';
+import { locationService } from '../../services';
 import './Categories.css';
 
-const locationsData = [
-    {
-        id: 1,
-        name: 'Gedung A',
-        type: 'building',
-        description: 'Gedung utama kantor pusat',
-        totalItems: 156,
-        totalRacks: 12,
-        children: [
-            { id: 11, name: 'Rak A1', itemCount: 24 },
-            { id: 12, name: 'Rak A2', itemCount: 18 },
-            { id: 13, name: 'Rak B1', itemCount: 32 },
-            { id: 14, name: 'Rak B2', itemCount: 28 },
-        ],
-    },
-    {
-        id: 2,
-        name: 'Gedung B',
-        type: 'building',
-        description: 'Gedung operasional dan produksi',
-        totalItems: 89,
-        totalRacks: 8,
-        children: [
-            { id: 21, name: 'Rak C1', itemCount: 45 },
-            { id: 22, name: 'Rak C2', itemCount: 44 },
-        ],
-    },
-    {
-        id: 3,
-        name: 'Gudang Utama',
-        type: 'warehouse',
-        description: 'Gudang penyimpanan utama',
-        totalItems: 342,
-        totalRacks: 24,
-        children: [
-            { id: 31, name: 'Area 1 - Elektronik', itemCount: 120 },
-            { id: 32, name: 'Area 2 - Furniture', itemCount: 85 },
-            { id: 33, name: 'Area 3 - ATK', itemCount: 137 },
-        ],
-    },
-];
-
 export default function Locations() {
+    const [locations, setLocations] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedLocations, setExpandedLocations] = useState([1]);
+    const [expandedLocations, setExpandedLocations] = useState([]);
+
+    const hasFetched = useRef(false);
+
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+
+        const fetchLocations = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const res = await locationService.getAll();
+                if (res.success) {
+                    const locationsData = res.data || [];
+                    setLocations(locationsData.map(loc => ({
+                        ...loc,
+                        type: loc.type || 'building',
+                        totalItems: loc.items_count || 0,
+                        totalRacks: loc.children?.length || 0,
+                        children: loc.children || [],
+                    })));
+                    // Expand first location by default
+                    if (locationsData.length > 0) {
+                        setExpandedLocations([locationsData[0].id]);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching locations:', err);
+                setError('Gagal memuat data lokasi');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLocations();
+    }, []);
 
     const toggleExpand = (id) => {
         setExpandedLocations((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
         );
     };
+
+    const filteredLocations = locations.filter((loc) =>
+        loc.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="locations-page">
@@ -105,60 +109,81 @@ export default function Locations() {
                 </div>
             </div>
 
-            {/* Locations Tree */}
-            <div className="locations-tree">
-                {locationsData.map((location) => (
-                    <div key={location.id} className="location-item">
-                        <div className="location-header" onClick={() => toggleExpand(location.id)}>
-                            <div
-                                className={`location-expand ${expandedLocations.includes(location.id) ? 'expanded' : ''}`}
-                            >
-                                <ChevronRight size={16} />
-                            </div>
-                            <div className="location-icon">
-                                {location.type === 'warehouse' ? (
-                                    <Package size={20} />
-                                ) : (
-                                    <Building size={20} />
+            {/* Error Message */}
+            {error && (
+                <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    {error}
+                </div>
+            )}
+
+            {/* Loading State */}
+            {isLoading ? (
+                <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-8)' }}>
+                    <Loader size={24} className="animate-spin" />
+                    <span style={{ marginLeft: 'var(--spacing-2)' }}>Memuat lokasi...</span>
+                </div>
+            ) : (
+                /* Locations Tree */
+                <div className="locations-tree">
+                    {filteredLocations.length === 0 ? (
+                        <div className="empty-state" style={{ textAlign: 'center', padding: 'var(--spacing-8)' }}>
+                            <p className="text-muted">Tidak ada lokasi ditemukan</p>
+                        </div>
+                    ) : (
+                        filteredLocations.map((location) => (
+                            <div key={location.id} className="location-item">
+                                <div className="location-header" onClick={() => toggleExpand(location.id)}>
+                                    <div
+                                        className={`location-expand ${expandedLocations.includes(location.id) ? 'expanded' : ''}`}
+                                    >
+                                        <ChevronRight size={16} />
+                                    </div>
+                                    <div className="location-icon">
+                                        {location.type === 'warehouse' ? (
+                                            <Package size={20} />
+                                        ) : (
+                                            <Building size={20} />
+                                        )}
+                                    </div>
+                                    <div className="location-info">
+                                        <h4>{location.name}</h4>
+                                        <p>{location.description || 'Tidak ada deskripsi'}</p>
+                                    </div>
+                                    <div className="location-stats">
+                                        <div className="location-stat">
+                                            <div className="value">{location.totalItems}</div>
+                                            <div className="label">Items</div>
+                                        </div>
+                                        <div className="location-stat">
+                                            <div className="value">{location.totalRacks}</div>
+                                            <div className="label">Rak</div>
+                                        </div>
+                                    </div>
+                                    <button className="btn btn-ghost btn-icon" onClick={(e) => e.stopPropagation()}>
+                                        <MoreVertical size={18} />
+                                    </button>
+                                </div>
+
+                                {expandedLocations.includes(location.id) && location.children && location.children.length > 0 && (
+                                    <div className="location-children">
+                                        {location.children.map((child) => (
+                                            <div key={child.id} className="location-child">
+                                                <div className="location-child-info">
+                                                    <div className="location-child-icon">
+                                                        <Layers size={16} />
+                                                    </div>
+                                                    <span>{child.name}</span>
+                                                </div>
+                                                <span className="badge badge-neutral">{child.items_count || 0} items</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
-                            <div className="location-info">
-                                <h4>{location.name}</h4>
-                                <p>{location.description}</p>
-                            </div>
-                            <div className="location-stats">
-                                <div className="location-stat">
-                                    <div className="value">{location.totalItems}</div>
-                                    <div className="label">Items</div>
-                                </div>
-                                <div className="location-stat">
-                                    <div className="value">{location.totalRacks}</div>
-                                    <div className="label">Rak</div>
-                                </div>
-                            </div>
-                            <button className="btn btn-ghost btn-icon" onClick={(e) => e.stopPropagation()}>
-                                <MoreVertical size={18} />
-                            </button>
-                        </div>
-
-                        {expandedLocations.includes(location.id) && location.children && (
-                            <div className="location-children">
-                                {location.children.map((child) => (
-                                    <div key={child.id} className="location-child">
-                                        <div className="location-child-info">
-                                            <div className="location-child-icon">
-                                                <Layers size={16} />
-                                            </div>
-                                            <span>{child.name}</span>
-                                        </div>
-                                        <span className="badge badge-neutral">{child.itemCount} items</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
+                        ))
+                    )}
+                </div>
+            )}
         </div>
     );
 }

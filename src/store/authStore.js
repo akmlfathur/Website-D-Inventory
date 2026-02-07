@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { authService } from '../services';
 
 const useAuthStore = create(
     persist(
@@ -16,44 +17,12 @@ const useAuthStore = create(
                 set({ isLoading: true, error: null });
 
                 try {
-                    // Simulate API call
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    const response = await authService.login(email, password);
 
-                    // Mock users for demo
-                    const mockUsers = {
-                        'admin@company.com': {
-                            id: 1,
-                            name: 'Admin User',
-                            email: 'admin@company.com',
-                            role: 'super_admin',
-                            department: 'IT',
-                            avatar: null,
-                        },
-                        'staff@company.com': {
-                            id: 2,
-                            name: 'Staff Gudang',
-                            email: 'staff@company.com',
-                            role: 'staff',
-                            department: 'Warehouse',
-                            avatar: null,
-                        },
-                        'user@company.com': {
-                            id: 3,
-                            name: 'Budi Santoso',
-                            email: 'user@company.com',
-                            role: 'employee',
-                            department: 'Marketing',
-                            avatar: null,
-                        },
-                    };
-
-                    const user = mockUsers[email];
-
-                    if (user && password === 'password123') {
-                        const token = btoa(`${email}:${Date.now()}`);
+                    if (response.success) {
                         set({
-                            user,
-                            token,
+                            user: response.data.user,
+                            token: response.data.token,
                             isAuthenticated: true,
                             isLoading: false,
                             error: null,
@@ -62,26 +31,46 @@ const useAuthStore = create(
                     } else {
                         set({
                             isLoading: false,
-                            error: 'Email atau password salah',
+                            error: response.message || 'Login gagal',
                         });
-                        return { success: false, error: 'Email atau password salah' };
+                        return { success: false, error: response.message };
                     }
                 } catch (error) {
+                    const message = error.response?.data?.message ||
+                        error.response?.data?.errors?.email?.[0] ||
+                        'Terjadi kesalahan, silakan coba lagi';
                     set({
                         isLoading: false,
-                        error: 'Terjadi kesalahan, silakan coba lagi',
+                        error: message,
                     });
-                    return { success: false, error: error.message };
+                    return { success: false, error: message };
                 }
             },
 
-            logout: () => {
+            logout: async () => {
+                try {
+                    await authService.logout();
+                } catch (e) {
+                    // Ignore logout errors
+                }
                 set({
                     user: null,
                     token: null,
                     isAuthenticated: false,
                     error: null,
                 });
+            },
+
+            refreshUser: async () => {
+                try {
+                    const response = await authService.me();
+                    if (response.success) {
+                        set({ user: response.data });
+                    }
+                } catch (error) {
+                    // Token invalid - logout
+                    get().logout();
+                }
             },
 
             clearError: () => {

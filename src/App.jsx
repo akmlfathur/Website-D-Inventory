@@ -101,11 +101,11 @@ function App() {
             }
           />
 
-          {/* Stock Opname - Staff & Admin only */}
+          {/* Stock Opname - Admin only */}
           <Route
             path="stock-opname"
             element={
-              <ProtectedRoute requiredRole="staff">
+              <ProtectedRoute requiredRole="super_admin">
                 <StockOpname />
               </ProtectedRoute>
             }

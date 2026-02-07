@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ClipboardCheck,
@@ -10,58 +10,56 @@ import {
     AlertCircle,
     Eye,
     Play,
+    Loader,
 } from 'lucide-react';
+import { stockOpnameService, locationService } from '../services';
 import './StockOpname.css';
 
-const opnameData = [
-    {
-        id: 1,
-        code: 'OPN-2024-012',
-        date: '2024-12-20',
-        location: 'Gudang Utama',
-        status: 'completed',
-        totalItems: 150,
-        matched: 145,
-        discrepancy: 5,
-        conductor: 'Admin User',
-    },
-    {
-        id: 2,
-        code: 'OPN-2024-011',
-        date: '2024-12-15',
-        location: 'Gedung A',
-        status: 'completed',
-        totalItems: 89,
-        matched: 89,
-        discrepancy: 0,
-        conductor: 'Staff Gudang',
-    },
-    {
-        id: 3,
-        code: 'OPN-2024-010',
-        date: '2024-12-10',
-        location: 'Gedung B',
-        status: 'in_progress',
-        totalItems: 45,
-        matched: 30,
-        discrepancy: 2,
-        conductor: 'Admin User',
-    },
-    {
-        id: 4,
-        code: 'OPN-2024-009',
-        date: '2024-12-01',
-        location: 'Gudang Utama',
-        status: 'completed',
-        totalItems: 200,
-        matched: 198,
-        discrepancy: 2,
-        conductor: 'Staff Gudang',
-    },
-];
-
 export default function StockOpname() {
+    const [opnameList, setOpnameList] = useState([]);
+    const [stats, setStats] = useState({ completed: 0, in_progress: 0, total_discrepancy: 0 });
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('all');
+
+    const hasFetched = useRef(false);
+
+    // Fetch opname data on mount
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+
+        fetchOpnameData();
+    }, []);
+
+    const fetchOpnameData = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const res = await stockOpnameService.getAll();
+            if (res.success) {
+                const data = res.data?.data || res.data || [];
+                setOpnameList(data);
+
+                // Calculate stats
+                const completed = data.filter(o => o.status === 'completed').length;
+                const inProgress = data.filter(o => o.status === 'in_progress').length;
+                const totalDiscrepancy = data.reduce((sum, o) => sum + (o.discrepancy || 0), 0);
+
+                setStats({
+                    completed,
+                    in_progress: inProgress,
+                    total_discrepancy: totalDiscrepancy,
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching opname data:', err);
+            setError('Gagal memuat data stock opname');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const getStatusBadge = (status) => {
         const statusMap = {
@@ -69,7 +67,7 @@ export default function StockOpname() {
             in_progress: { label: 'Berlangsung', class: 'badge-warning', icon: Clock },
             scheduled: { label: 'Terjadwal', class: 'badge-info', icon: Calendar },
         };
-        const info = statusMap[status];
+        const info = statusMap[status] || statusMap.scheduled;
         const Icon = info.icon;
         return (
             <span className={`badge ${info.class}`}>
@@ -80,12 +78,18 @@ export default function StockOpname() {
     };
 
     const formatDate = (dateStr) => {
+        if (!dateStr) return '-';
         return new Date(dateStr).toLocaleDateString('id-ID', {
             day: 'numeric',
             month: 'short',
             year: 'numeric',
         });
     };
+
+    const filteredOpname = opnameList.filter((o) => {
+        if (activeTab === 'all') return true;
+        return o.status === activeTab;
+    });
 
     return (
         <div className="stock-opname-page">
@@ -110,6 +114,13 @@ export default function StockOpname() {
                 </div>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    {error}
+                </div>
+            )}
+
             {/* Stats Cards */}
             <div className="opname-stats">
                 <div className="stat-card">
@@ -117,7 +128,7 @@ export default function StockOpname() {
                         <CheckCircle size={24} />
                     </div>
                     <div className="stat-info">
-                        <span className="stat-value">12</span>
+                        <span className="stat-value">{stats.completed}</span>
                         <span className="stat-label">Opname Selesai</span>
                     </div>
                 </div>
@@ -126,7 +137,7 @@ export default function StockOpname() {
                         <Clock size={24} />
                     </div>
                     <div className="stat-info">
-                        <span className="stat-value">1</span>
+                        <span className="stat-value">{stats.in_progress}</span>
                         <span className="stat-label">Sedang Berlangsung</span>
                     </div>
                 </div>
@@ -135,7 +146,7 @@ export default function StockOpname() {
                         <AlertCircle size={24} />
                     </div>
                     <div className="stat-info">
-                        <span className="stat-value">9</span>
+                        <span className="stat-value">{stats.total_discrepancy}</span>
                         <span className="stat-label">Total Selisih</span>
                     </div>
                 </div>
@@ -179,20 +190,34 @@ export default function StockOpname() {
                             </tr>
                         </thead>
                         <tbody>
-                            {opnameData
-                                .filter((o) => activeTab === 'all' || o.status === activeTab)
-                                .map((opname) => (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="7" className="text-center">
+                                        <div style={{ padding: 'var(--spacing-8)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+                                            <Loader size={20} className="animate-spin" />
+                                            <span>Memuat data...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : filteredOpname.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" className="text-center text-muted">
+                                        Tidak ada data stock opname
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredOpname.map((opname) => (
                                     <tr key={opname.id}>
                                         <td>
-                                            <span className="code-cell">{opname.code}</span>
+                                            <span className="code-cell">{opname.code || `OPN-${opname.id}`}</span>
                                         </td>
-                                        <td>{formatDate(opname.date)}</td>
-                                        <td>{opname.location}</td>
+                                        <td>{formatDate(opname.created_at || opname.date)}</td>
+                                        <td>{opname.location?.name || opname.location || '-'}</td>
                                         <td>{getStatusBadge(opname.status)}</td>
                                         <td>
                                             <div className="result-cell">
-                                                <span className="matched">{opname.matched}/{opname.totalItems} cocok</span>
-                                                {opname.discrepancy > 0 && (
+                                                <span className="matched">{opname.matched || 0}/{opname.total_items || 0} cocok</span>
+                                                {(opname.discrepancy || 0) > 0 && (
                                                     <span className="discrepancy">({opname.discrepancy} selisih)</span>
                                                 )}
                                             </div>
@@ -200,7 +225,7 @@ export default function StockOpname() {
                                         <td>
                                             <div className="conductor-cell">
                                                 <User size={14} />
-                                                {opname.conductor}
+                                                {opname.conductor?.name || opname.conductor || '-'}
                                             </div>
                                         </td>
                                         <td>
@@ -217,7 +242,8 @@ export default function StockOpname() {
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

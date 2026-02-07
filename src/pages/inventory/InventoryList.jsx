@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Search,
@@ -16,87 +16,112 @@ import {
     Package,
     Printer,
     FileText,
+    Loader,
 } from 'lucide-react';
+import { itemService, categoryService, locationService } from '../../services';
 import './InventoryList.css';
 
-const categories = ['Semua', 'Elektronik', 'Furniture', 'ATK', 'Bahan Baku'];
-const statuses = ['Semua', 'Available', 'In Use', 'Low Stock', 'Need Service'];
+const statuses = ['Semua', 'Available', 'Low Stock'];
 
-const inventoryData = [
-    {
-        id: 1,
-        name: 'Laptop Dell XPS 15',
-        sku: 'LPT-001',
-        category: 'Elektronik',
-        stock: 15,
-        status: 'available',
-        location: 'Gedung A - Rak B3',
-        icon: Laptop,
-    },
-    {
-        id: 2,
-        name: 'Kertas A4 80gsm',
-        sku: 'ATK-042',
-        category: 'ATK',
-        stock: 8,
-        status: 'low',
-        location: 'Gudang Utama - Rak A1',
-        icon: FileText,
-    },
-    {
-        id: 3,
-        name: 'Printer HP LaserJet',
-        sku: 'PRN-003',
-        category: 'Elektronik',
-        stock: 3,
-        status: 'available',
-        location: 'Gedung A - Rak C2',
-        icon: Printer,
-    },
-    {
-        id: 4,
-        name: 'Kursi Ergonomic',
-        sku: 'FRN-015',
-        category: 'Furniture',
-        stock: 25,
-        status: 'available',
-        location: 'Gudang B - Area 2',
-        icon: Package,
-    },
-    {
-        id: 5,
-        name: 'Mouse Wireless Logitech',
-        sku: 'ELK-028',
-        category: 'Elektronik',
-        stock: 42,
-        status: 'available',
-        location: 'Gedung A - Rak B1',
-        icon: Package,
-    },
-    {
-        id: 6,
-        name: 'Tinta Printer HP',
-        sku: 'ATK-055',
-        category: 'ATK',
-        stock: 5,
-        status: 'low',
-        location: 'Gudang Utama - Rak A2',
-        icon: Package,
-    },
-];
+// Map icon based on category or type
+const getItemIcon = (item) => {
+    if (item.type === 'asset') return Laptop;
+    if (item.category?.name?.toLowerCase().includes('atk')) return FileText;
+    if (item.category?.name?.toLowerCase().includes('elektronik')) return Printer;
+    return Package;
+};
 
 export default function InventoryList() {
+    const [items, setItems] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('Semua');
-    const [selectedStatus, setSelectedStatus] = useState('Semua');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('');
     const [selectedItems, setSelectedItems] = useState([]);
     const [showActions, setShowActions] = useState(null);
 
+    const [pagination, setPagination] = useState({
+        page: 1,
+        perPage: 10,
+        total: 0,
+        lastPage: 1,
+    });
+
+    const hasFetched = useRef(false);
+
+    // Fetch categories on mount
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+
+        const fetchCategories = async () => {
+            try {
+                const res = await categoryService.getAll();
+                if (res.success) {
+                    setCategories(res.data || []);
+                }
+            } catch (err) {
+                console.error('Error fetching categories:', err);
+            }
+        };
+        fetchCategories();
+    }, []);
+
+    // Fetch items when filters change
+    useEffect(() => {
+        const fetchItems = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const params = {
+                    page: pagination.page,
+                    per_page: pagination.perPage,
+                };
+
+                if (searchQuery) params.search = searchQuery;
+                if (selectedCategory) params.category_id = selectedCategory;
+                if (selectedStatus === 'Low Stock') params.low_stock = true;
+
+                const res = await itemService.getAll(params);
+
+                if (res.success) {
+                    const itemsData = res.data.data || res.data || [];
+                    setItems(itemsData.map(item => ({
+                        ...item,
+                        icon: getItemIcon(item),
+                    })));
+                    setPagination({
+                        page: res.data.current_page || 1,
+                        perPage: res.data.per_page || 10,
+                        total: res.data.total || 0,
+                        lastPage: res.data.last_page || 1,
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching items:', err);
+                setError('Gagal memuat data barang');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        // Debounce search
+        const timer = setTimeout(() => {
+            fetchItems();
+        }, searchQuery ? 300 : 0);
+
+        return () => clearTimeout(timer);
+    }, [pagination.page, searchQuery, selectedCategory, selectedStatus]);
+
     const toggleSelectAll = () => {
-        if (selectedItems.length === inventoryData.length) {
+        if (selectedItems.length === items.length) {
             setSelectedItems([]);
         } else {
-            setSelectedItems(inventoryData.map((item) => item.id));
+            setSelectedItems(items.map((item) => item.id));
         }
     };
 
@@ -108,15 +133,23 @@ export default function InventoryList() {
         }
     };
 
-    const getStatusBadge = (status) => {
-        const statusMap = {
-            available: { label: 'Available', class: 'badge-success' },
-            low: { label: 'Low Stock', class: 'badge-warning' },
-            inuse: { label: 'In Use', class: 'badge-info' },
-            service: { label: 'Need Service', class: 'badge-danger' },
-        };
-        const statusInfo = statusMap[status] || statusMap.available;
-        return <span className={`badge ${statusInfo.class}`}>{statusInfo.label}</span>;
+    const getStatusBadge = (item) => {
+        if (item.stock <= item.min_stock) {
+            return <span className="badge badge-warning">Low Stock</span>;
+        }
+        return <span className="badge badge-success">Available</span>;
+    };
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= pagination.lastPage) {
+            setPagination(prev => ({ ...prev, page: newPage }));
+        }
+    };
+
+    const clearFilters = () => {
+        setSelectedCategory('');
+        setSelectedStatus('');
+        setSearchQuery('');
     };
 
     return (
@@ -164,9 +197,10 @@ export default function InventoryList() {
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
                         >
+                            <option value="">Semua Kategori</option>
                             {categories.map((cat) => (
-                                <option key={cat} value={cat}>
-                                    {cat === 'Semua' ? 'Semua Kategori' : cat}
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.name}
                                 </option>
                             ))}
                         </select>
@@ -176,7 +210,7 @@ export default function InventoryList() {
                             onChange={(e) => setSelectedStatus(e.target.value)}
                         >
                             {statuses.map((status) => (
-                                <option key={status} value={status}>
+                                <option key={status} value={status === 'Semua' ? '' : status}>
                                     {status === 'Semua' ? 'Semua Status' : status}
                                 </option>
                             ))}
@@ -187,32 +221,33 @@ export default function InventoryList() {
                         </button>
                     </div>
                 </div>
-                {(selectedCategory !== 'Semua' || selectedStatus !== 'Semua') && (
+                {(selectedCategory || selectedStatus) && (
                     <div className="active-filters">
-                        {selectedCategory !== 'Semua' && (
+                        {selectedCategory && (
                             <span className="filter-tag">
-                                {selectedCategory}
-                                <button onClick={() => setSelectedCategory('Semua')}>&times;</button>
+                                {categories.find(c => c.id == selectedCategory)?.name || 'Kategori'}
+                                <button onClick={() => setSelectedCategory('')}>&times;</button>
                             </span>
                         )}
-                        {selectedStatus !== 'Semua' && (
+                        {selectedStatus && (
                             <span className="filter-tag">
                                 {selectedStatus}
-                                <button onClick={() => setSelectedStatus('Semua')}>&times;</button>
+                                <button onClick={() => setSelectedStatus('')}>&times;</button>
                             </span>
                         )}
-                        <button
-                            className="clear-filters"
-                            onClick={() => {
-                                setSelectedCategory('Semua');
-                                setSelectedStatus('Semua');
-                            }}
-                        >
+                        <button className="clear-filters" onClick={clearFilters}>
                             Clear All
                         </button>
                     </div>
                 )}
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    {error}
+                </div>
+            )}
 
             {/* Data Table */}
             <div className="card">
@@ -223,7 +258,7 @@ export default function InventoryList() {
                                 <th className="checkbox-cell">
                                     <input
                                         type="checkbox"
-                                        checked={selectedItems.length === inventoryData.length}
+                                        checked={items.length > 0 && selectedItems.length === items.length}
                                         onChange={toggleSelectAll}
                                     />
                                 </th>
@@ -237,67 +272,84 @@ export default function InventoryList() {
                             </tr>
                         </thead>
                         <tbody>
-                            {inventoryData.map((item) => (
-                                <tr key={item.id} className={selectedItems.includes(item.id) ? 'selected' : ''}>
-                                    <td className="checkbox-cell">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedItems.includes(item.id)}
-                                            onChange={() => toggleSelectItem(item.id)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <div className="item-cell">
-                                            <div className="item-icon">
-                                                <item.icon size={18} />
-                                            </div>
-                                            <span className="item-name">{item.name}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <code className="sku-code">{item.sku}</code>
-                                    </td>
-                                    <td>{item.category}</td>
-                                    <td>
-                                        <span className={item.status === 'low' ? 'stock-low' : ''}>
-                                            {item.stock}
-                                        </span>
-                                    </td>
-                                    <td>{getStatusBadge(item.status)}</td>
-                                    <td className="text-muted text-sm">{item.location}</td>
-                                    <td className="actions-cell">
-                                        <div className="action-menu">
-                                            <button
-                                                className="btn btn-ghost btn-icon"
-                                                onClick={() => setShowActions(showActions === item.id ? null : item.id)}
-                                            >
-                                                <MoreVertical size={18} />
-                                            </button>
-                                            {showActions === item.id && (
-                                                <div className="action-dropdown">
-                                                    <button className="dropdown-item">
-                                                        <Eye size={16} />
-                                                        View Detail
-                                                    </button>
-                                                    <button className="dropdown-item">
-                                                        <Edit size={16} />
-                                                        Edit
-                                                    </button>
-                                                    <button className="dropdown-item">
-                                                        <QrCode size={16} />
-                                                        Show QR
-                                                    </button>
-                                                    <hr className="dropdown-divider" />
-                                                    <button className="dropdown-item danger">
-                                                        <Trash2 size={16} />
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            )}
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="8" className="text-center">
+                                        <div style={{ padding: 'var(--spacing-8)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+                                            <Loader size={20} className="animate-spin" />
+                                            <span>Memuat data...</span>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : items.length === 0 ? (
+                                <tr>
+                                    <td colSpan="8" className="text-center text-muted">
+                                        Tidak ada data barang
+                                    </td>
+                                </tr>
+                            ) : (
+                                items.map((item) => (
+                                    <tr key={item.id} className={selectedItems.includes(item.id) ? 'selected' : ''}>
+                                        <td className="checkbox-cell">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedItems.includes(item.id)}
+                                                onChange={() => toggleSelectItem(item.id)}
+                                            />
+                                        </td>
+                                        <td>
+                                            <div className="item-cell">
+                                                <div className="item-icon">
+                                                    <item.icon size={18} />
+                                                </div>
+                                                <span className="item-name">{item.name}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <code className="sku-code">{item.sku}</code>
+                                        </td>
+                                        <td>{item.category?.name || '-'}</td>
+                                        <td>
+                                            <span className={item.stock <= item.min_stock ? 'stock-low' : ''}>
+                                                {item.stock}
+                                            </span>
+                                        </td>
+                                        <td>{getStatusBadge(item)}</td>
+                                        <td className="text-muted text-sm">{item.location?.name || '-'}</td>
+                                        <td className="actions-cell">
+                                            <div className="action-menu">
+                                                <button
+                                                    className="btn btn-ghost btn-icon"
+                                                    onClick={() => setShowActions(showActions === item.id ? null : item.id)}
+                                                >
+                                                    <MoreVertical size={18} />
+                                                </button>
+                                                {showActions === item.id && (
+                                                    <div className="action-dropdown">
+                                                        <Link to={`/inventory/${item.id}`} className="dropdown-item">
+                                                            <Eye size={16} />
+                                                            View Detail
+                                                        </Link>
+                                                        <button className="dropdown-item">
+                                                            <Edit size={16} />
+                                                            Edit
+                                                        </button>
+                                                        <button className="dropdown-item">
+                                                            <QrCode size={16} />
+                                                            Show QR
+                                                        </button>
+                                                        <hr className="dropdown-divider" />
+                                                        <button className="dropdown-item danger">
+                                                            <Trash2 size={16} />
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -305,18 +357,53 @@ export default function InventoryList() {
                 {/* Pagination */}
                 <div className="pagination">
                     <div className="pagination-info">
-                        Showing 1-6 of 254 items
+                        Showing {items.length > 0 ? ((pagination.page - 1) * pagination.perPage) + 1 : 0}-{Math.min(pagination.page * pagination.perPage, pagination.total)} of {pagination.total} items
                     </div>
                     <div className="pagination-buttons">
-                        <button className="pagination-btn" disabled>
+                        <button
+                            className="pagination-btn"
+                            disabled={pagination.page === 1}
+                            onClick={() => handlePageChange(pagination.page - 1)}
+                        >
                             <ChevronLeft size={16} />
                         </button>
-                        <button className="pagination-btn active">1</button>
-                        <button className="pagination-btn">2</button>
-                        <button className="pagination-btn">3</button>
-                        <span className="pagination-ellipsis">...</span>
-                        <button className="pagination-btn">26</button>
-                        <button className="pagination-btn">
+                        {[...Array(Math.min(5, pagination.lastPage))].map((_, i) => {
+                            let pageNum;
+                            if (pagination.lastPage <= 5) {
+                                pageNum = i + 1;
+                            } else if (pagination.page <= 3) {
+                                pageNum = i + 1;
+                            } else if (pagination.page >= pagination.lastPage - 2) {
+                                pageNum = pagination.lastPage - 4 + i;
+                            } else {
+                                pageNum = pagination.page - 2 + i;
+                            }
+                            return (
+                                <button
+                                    key={pageNum}
+                                    className={`pagination-btn ${pagination.page === pageNum ? 'active' : ''}`}
+                                    onClick={() => handlePageChange(pageNum)}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+                        {pagination.lastPage > 5 && pagination.page < pagination.lastPage - 2 && (
+                            <>
+                                <span className="pagination-ellipsis">...</span>
+                                <button
+                                    className="pagination-btn"
+                                    onClick={() => handlePageChange(pagination.lastPage)}
+                                >
+                                    {pagination.lastPage}
+                                </button>
+                            </>
+                        )}
+                        <button
+                            className="pagination-btn"
+                            disabled={pagination.page === pagination.lastPage}
+                            onClick={() => handlePageChange(pagination.page + 1)}
+                        >
                             <ChevronRight size={16} />
                         </button>
                     </div>
