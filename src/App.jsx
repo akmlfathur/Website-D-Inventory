@@ -9,10 +9,11 @@ import Dashboard from './pages/Dashboard';
 import InventoryList from './pages/inventory/InventoryList';
 import ItemDetail from './pages/inventory/ItemDetail';
 import Categories from './pages/inventory/Categories';
+import CategoryItems from './pages/inventory/CategoryItems';
 import Locations from './pages/inventory/Locations';
 import Inbound from './pages/transactions/Inbound';
 import Outbound from './pages/transactions/Outbound';
-import Requests from './pages/transactions/Requests';
+
 import UserList from './pages/users/UserList';
 import Settings from './pages/Settings';
 import StockOpname from './pages/StockOpname';
@@ -65,6 +66,7 @@ function App() {
           <Route path="inventory" element={<InventoryList />} />
           <Route path="inventory/:id" element={<ItemDetail />} />
           <Route path="inventory/categories" element={<Categories />} />
+          <Route path="inventory/categories/:id" element={<CategoryItems />} />
           <Route path="inventory/locations" element={<Locations />} />
 
           {/* Transactions - Staff & Admin only */}
@@ -72,7 +74,7 @@ function App() {
             path="transactions"
             element={
               <ProtectedRoute requiredRole="staff">
-                <Requests />
+                <Inbound />
               </ProtectedRoute>
             }
           />
@@ -89,14 +91,6 @@ function App() {
             element={
               <ProtectedRoute requiredRole="staff">
                 <Outbound />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="transactions/requests"
-            element={
-              <ProtectedRoute requiredRole="staff">
-                <Requests />
               </ProtectedRoute>
             }
           />

@@ -16,10 +16,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    PieChart as RechartsPie,
-    Pie,
-    Cell,
-    Legend,
 } from 'recharts';
 import { dashboardService, reportService } from '../services';
 import './StockOpname.css';
@@ -57,7 +53,6 @@ const reportTypes = [
 export default function Reports() {
     const [dateRange, setDateRange] = useState('month');
     const [chartData, setChartData] = useState([]);
-    const [categoryData, setCategoryData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [downloading, setDownloading] = useState(null);
@@ -83,17 +78,6 @@ export default function Reports() {
                 const monthlyData = processChartData(res.data);
                 setChartData(monthlyData);
             }
-
-            // Fetch category distribution
-            const statsRes = await dashboardService.getStats();
-            if (statsRes.success && statsRes.data?.categoryDistribution) {
-                const colors = ['#6366F1', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4'];
-                setCategoryData(statsRes.data.categoryDistribution.map((cat, idx) => ({
-                    name: cat.name,
-                    value: cat.count || cat.value,
-                    color: colors[idx % colors.length],
-                })));
-            }
         } catch (err) {
             console.error('Error fetching report data:', err);
             setError('Gagal memuat data laporan');
@@ -114,19 +98,16 @@ export default function Reports() {
         return [];
     };
 
-    const handleDownload = async (reportType) => {
-        setDownloading(reportType.id);
+    const handleDownload = async (reportType, format = 'csv') => {
+        const downloadKey = `${reportType.id}-${format}`;
+        setDownloading(downloadKey);
         try {
-            // Call report download API
-            if (reportService?.download) {
-                await reportService.download(reportType.endpoint);
-            } else {
-                // Fallback: just show alert
-                alert(`Download ${reportType.title} - Fitur sedang dalam pengembangan`);
-            }
+            await reportService.download(reportType.endpoint, format);
+            // Show success message
+            setError(null);
         } catch (err) {
             console.error('Error downloading report:', err);
-            alert('Gagal mendownload laporan');
+            setError(`Gagal mendownload ${reportType.title} (${format.toUpperCase()})`);
         } finally {
             setDownloading(null);
         }
@@ -186,31 +167,47 @@ export default function Reports() {
                         <p>{report.description}</p>
                         <div className="report-card-footer">
                             <span className="report-type">{report.type}</span>
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleDownload(report)}
-                                disabled={downloading === report.id}
-                            >
-                                {downloading === report.id ? (
-                                    <Loader size={14} className="animate-spin" />
-                                ) : (
-                                    <Download size={14} />
-                                )}
-                                Download
-                            </button>
+                            <div className="download-buttons" style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => handleDownload(report, 'csv')}
+                                    disabled={downloading === `${report.id}-csv`}
+                                    title="Download Excel (CSV)"
+                                >
+                                    {downloading === `${report.id}-csv` ? (
+                                        <Loader size={14} className="animate-spin" />
+                                    ) : (
+                                        <Download size={14} />
+                                    )}
+                                    Excel
+                                </button>
+                                <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => handleDownload(report, 'pdf')}
+                                    disabled={downloading === `${report.id}-pdf`}
+                                    title="Download PDF"
+                                >
+                                    {downloading === `${report.id}-pdf` ? (
+                                        <Loader size={14} className="animate-spin" />
+                                    ) : (
+                                        <FileText size={14} />
+                                    )}
+                                    PDF
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
             </div>
 
             {/* Charts */}
-            <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-6)' }}>
-                {/* Activity Chart */}
+            <div className="charts-grid">
+                {/* Activity Chart - Full Width */}
                 <div className="card">
                     <div className="card-header">
                         <h3>📈 Aktivitas Bulanan</h3>
                     </div>
-                    <div className="card-body" style={{ height: '300px' }}>
+                    <div className="card-body" style={{ height: '350px' }}>
                         {isLoading ? (
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                                 <Loader size={24} className="animate-spin" />
@@ -254,44 +251,6 @@ export default function Reports() {
                         ) : (
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                                 <span className="text-muted">Tidak ada data</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Category Distribution */}
-                <div className="card">
-                    <div className="card-header">
-                        <h3>📊 Distribusi Kategori</h3>
-                    </div>
-                    <div className="card-body" style={{ height: '300px' }}>
-                        {isLoading ? (
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                <Loader size={24} className="animate-spin" />
-                            </div>
-                        ) : categoryData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPie>
-                                    <Pie
-                                        data={categoryData}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        outerRadius={80}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                    >
-                                        {categoryData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Legend />
-                                </RechartsPie>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                <span className="text-muted">Tidak ada data kategori</span>
                             </div>
                         )}
                     </div>

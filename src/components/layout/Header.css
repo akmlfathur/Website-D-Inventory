@@ -73,6 +73,15 @@
     color: var(--neutral-900);
 }
 
+.theme-toggle-btn {
+    color: var(--neutral-600);
+}
+
+.theme-toggle-btn:hover {
+    background: var(--primary-50);
+    color: var(--primary);
+}
+
 .notification-badge {
     position: absolute;
     top: 6px;

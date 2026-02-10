@@ -4,7 +4,7 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-4);
     margin-bottom: var(--spacing-6);
 }
@@ -130,6 +130,101 @@
     color: var(--neutral-400);
     margin-top: var(--spacing-1);
     display: block;
+}
+
+/* Notification Modal */
+.modal-notification {
+    max-width: 560px;
+}
+
+.modal-notification .modal-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.notif-modal-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.notif-modal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-md);
+    border-left: 3px solid transparent;
+    background: var(--neutral-50);
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.notif-modal-item:hover {
+    background: var(--neutral-100);
+    transform: translateX(2px);
+}
+
+.notif-modal-item.warning {
+    border-left-color: var(--warning);
+}
+
+.notif-modal-item.info {
+    border-left-color: var(--info);
+}
+
+.notif-modal-item.success {
+    border-left-color: var(--success);
+}
+
+.notif-modal-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--white);
+    color: var(--neutral-600);
+    box-shadow: var(--shadow-sm);
+}
+
+.notif-modal-item.warning .notif-modal-icon {
+    color: var(--warning);
+}
+
+.notif-modal-item.info .notif-modal-icon {
+    color: var(--info);
+}
+
+.notif-modal-item.success .notif-modal-icon {
+    color: var(--success);
+}
+
+.notif-modal-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-modal-message {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--neutral-800);
+    line-height: 1.4;
+}
+
+.notif-modal-time {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-400);
+    margin-top: var(--spacing-1);
+    display: block;
+}
+
+.notif-modal-item .badge {
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 /* Transactions Table */

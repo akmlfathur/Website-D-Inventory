@@ -53,7 +53,6 @@ export default function Sidebar({ collapsed, onToggle }) {
       children: [
         { label: 'Barang Masuk', path: '/transactions/inbound', icon: ArrowDownToLine },
         { label: 'Barang Keluar', path: '/transactions/outbound', icon: ArrowUpFromLine },
-        { label: 'Request Pending', path: '/transactions/requests', icon: ClipboardList },
       ],
     });
   }

@@ -10,13 +10,16 @@ import {
     X,
     CheckCircle,
     Loader,
+    Plus,
+    Layers,
 } from 'lucide-react';
 import { QRScanner } from '../../components/domain';
-import { itemService, locationService, transactionService } from '../../services';
+import { itemService, categoryService, locationService, transactionService } from '../../services';
 import './Transactions.css';
 
 export default function Inbound() {
     const [items, setItems] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [locations, setLocations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,6 +27,32 @@ export default function Inbound() {
     const [scannedData, setScannedData] = useState(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [error, setError] = useState(null);
+
+    // New Item Modal
+    const [showNewItemModal, setShowNewItemModal] = useState(false);
+    const [isCreatingItem, setIsCreatingItem] = useState(false);
+    const [newItemForm, setNewItemForm] = useState({
+        name: '',
+        sku: '',
+        category_id: '',
+        location_id: '',
+        type: 'consumable',
+        unit: 'pcs',
+        stock: 0,
+        min_stock: 0,
+        price: 0,
+        description: '',
+    });
+    const [newItemError, setNewItemError] = useState(null);
+
+    // New Category Modal
+    const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
+    const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+    const [newCategoryForm, setNewCategoryForm] = useState({
+        name: '',
+        description: '',
+    });
+    const [newCategoryError, setNewCategoryError] = useState(null);
 
     const hasFetched = useRef(false);
 
@@ -36,7 +65,7 @@ export default function Inbound() {
         notes: '',
     });
 
-    // Fetch items and locations on mount
+    // Fetch items, categories, and locations on mount
     useEffect(() => {
         if (hasFetched.current) return;
         hasFetched.current = true;
@@ -44,16 +73,20 @@ export default function Inbound() {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [itemsRes, locationsRes] = await Promise.all([
+                const [itemsRes, locationsRes, categoriesRes] = await Promise.all([
                     itemService.getAll({ per_page: 100 }),
                     locationService.getAll(),
+                    categoryService.getAll().catch(() => ({ success: false })),
                 ]);
 
                 if (itemsRes.success) {
                     setItems(itemsRes.data.data || itemsRes.data || []);
                 }
                 if (locationsRes.success) {
-                    setLocations(locationsRes.data || []);
+                    setLocations(locationsRes.data?.data || locationsRes.data || []);
+                }
+                if (categoriesRes.success) {
+                    setCategories(categoriesRes.data || []);
                 }
             } catch (err) {
                 console.error('Error fetching data:', err);
@@ -94,7 +127,7 @@ export default function Inbound() {
 
         try {
             const res = await transactionService.create({
-                type: 'in',
+                type: 'inbound',
                 item_id: parseInt(formData.item_id),
                 quantity: parseInt(formData.quantity),
                 supplier: formData.supplier || null,
@@ -138,6 +171,104 @@ export default function Inbound() {
         });
         setScannedData(null);
         setError(null);
+    };
+
+    // ===== New Item Handlers =====
+    const handleOpenNewItem = () => {
+        setNewItemForm({
+            name: '',
+            sku: '',
+            category_id: '',
+            location_id: '',
+            type: 'consumable',
+            unit: 'pcs',
+            stock: 0,
+            min_stock: 0,
+            price: 0,
+            description: '',
+        });
+        setNewItemError(null);
+        setShowNewItemModal(true);
+    };
+
+    const handleNewItemChange = (e) => {
+        const { name, value } = e.target;
+        setNewItemForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleCreateItem = async (e) => {
+        e.preventDefault();
+        setIsCreatingItem(true);
+        setNewItemError(null);
+
+        try {
+            const payload = {
+                name: newItemForm.name.trim(),
+                sku: newItemForm.sku.trim() || null,
+                category_id: parseInt(newItemForm.category_id),
+                location_id: parseInt(newItemForm.location_id),
+                type: newItemForm.type,
+                unit: newItemForm.unit || 'pcs',
+                stock: parseInt(newItemForm.stock) || 0,
+                min_stock: parseInt(newItemForm.min_stock) || 0,
+                price: parseFloat(newItemForm.price) || 0,
+                description: newItemForm.description.trim() || null,
+            };
+
+            const res = await itemService.create(payload);
+
+            if (res.success) {
+                const newItem = res.data;
+                // Add new item to the items list
+                setItems(prev => [...prev, newItem]);
+                // Auto-select the new item in the inbound form
+                setFormData(prev => ({ ...prev, item_id: newItem.id.toString() }));
+                setShowNewItemModal(false);
+            } else {
+                setNewItemError(res.message || 'Gagal membuat item baru');
+            }
+        } catch (err) {
+            console.error('Error creating item:', err);
+            const errMsg = err?.response?.data?.message || 'Gagal membuat item baru';
+            setNewItemError(errMsg);
+        } finally {
+            setIsCreatingItem(false);
+        }
+    };
+
+    // ===== New Category Handlers =====
+    const handleOpenNewCategory = () => {
+        setNewCategoryForm({ name: '', description: '' });
+        setNewCategoryError(null);
+        setShowNewCategoryModal(true);
+    };
+
+    const handleCreateCategory = async (e) => {
+        e.preventDefault();
+        setIsCreatingCategory(true);
+        setNewCategoryError(null);
+
+        try {
+            const res = await categoryService.create({
+                name: newCategoryForm.name.trim(),
+                description: newCategoryForm.description.trim() || null,
+            });
+
+            if (res.success) {
+                const newCat = res.data;
+                setCategories(prev => [...prev, newCat]);
+                // Auto-select the new category in the new item form
+                setNewItemForm(prev => ({ ...prev, category_id: newCat.id.toString() }));
+                setShowNewCategoryModal(false);
+            } else {
+                setNewCategoryError(res.message || 'Gagal membuat kategori baru');
+            }
+        } catch (err) {
+            console.error('Error creating category:', err);
+            setNewCategoryError('Gagal membuat kategori baru');
+        } finally {
+            setIsCreatingCategory(false);
+        }
     };
 
     return (
@@ -214,12 +345,6 @@ export default function Inbound() {
                                 <Scan size={18} />
                                 Mulai Scan
                             </button>
-                            <div className="divider">
-                                <span>atau</span>
-                            </div>
-                            <button className="btn btn-secondary btn-block">
-                                Input Manual
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -244,7 +369,7 @@ export default function Inbound() {
                                         Informasi Barang
                                     </h4>
                                     <div className="form-row">
-                                        <div className="form-group">
+                                        <div className="form-group" style={{ flex: 1 }}>
                                             <label className="form-label">Item *</label>
                                             <select
                                                 name="item_id"
@@ -261,6 +386,14 @@ export default function Inbound() {
                                                 ))}
                                             </select>
                                         </div>
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+                                            <button type="button" className="btn btn-secondary" onClick={handleOpenNewItem} title="Tambah Item Baru">
+                                                <Plus size={18} />
+                                                Item Baru
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="form-row" style={{ marginTop: 'var(--spacing-3)' }}>
                                         <div className="form-group" style={{ maxWidth: '150px' }}>
                                             <label className="form-label">Jumlah *</label>
                                             <input
@@ -368,6 +501,233 @@ export default function Inbound() {
                     </div>
                 </div>
             </div>
+
+            {/* ===== New Item Modal ===== */}
+            {showNewItemModal && (
+                <div className="modal-overlay" onClick={() => setShowNewItemModal(false)}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>📦 Tambah Item Baru</h3>
+                            <button className="modal-close" onClick={() => setShowNewItemModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateItem}>
+                            <div className="modal-body">
+                                {newItemError && (
+                                    <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                                        {newItemError}
+                                    </div>
+                                )}
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">Nama Barang *</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            className="form-input"
+                                            placeholder="Masukkan nama barang"
+                                            value={newItemForm.name}
+                                            onChange={handleNewItemChange}
+                                            required
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">SKU</label>
+                                        <input
+                                            type="text"
+                                            name="sku"
+                                            className="form-input"
+                                            placeholder="SKU-XXXX"
+                                            value={newItemForm.sku}
+                                            onChange={handleNewItemChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Kategori *</label>
+                                        <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                                            <select
+                                                name="category_id"
+                                                className="form-select"
+                                                value={newItemForm.category_id}
+                                                onChange={handleNewItemChange}
+                                                required
+                                                style={{ flex: 1 }}
+                                            >
+                                                <option value="">Pilih Kategori</option>
+                                                {categories.map(cat => (
+                                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-icon"
+                                                onClick={handleOpenNewCategory}
+                                                title="Kategori Baru"
+                                                style={{ flexShrink: 0 }}
+                                            >
+                                                <Plus size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Lokasi *</label>
+                                        <select
+                                            name="location_id"
+                                            className="form-select"
+                                            value={newItemForm.location_id}
+                                            onChange={handleNewItemChange}
+                                            required
+                                        >
+                                            <option value="">Pilih Lokasi</option>
+                                            {locations.map(loc => (
+                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Tipe</label>
+                                        <select
+                                            name="type"
+                                            className="form-select"
+                                            value={newItemForm.type}
+                                            onChange={handleNewItemChange}
+                                        >
+                                            <option value="consumable">Consumable</option>
+                                            <option value="asset">Asset</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Satuan</label>
+                                        <input
+                                            type="text"
+                                            name="unit"
+                                            className="form-input"
+                                            placeholder="pcs, rim, unit..."
+                                            value={newItemForm.unit}
+                                            onChange={handleNewItemChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Stok Awal</label>
+                                        <input
+                                            type="number"
+                                            name="stock"
+                                            className="form-input"
+                                            value={newItemForm.stock}
+                                            onChange={handleNewItemChange}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Stok Minimum</label>
+                                        <input
+                                            type="number"
+                                            name="min_stock"
+                                            className="form-input"
+                                            value={newItemForm.min_stock}
+                                            onChange={handleNewItemChange}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Harga</label>
+                                        <input
+                                            type="number"
+                                            name="price"
+                                            className="form-input"
+                                            value={newItemForm.price}
+                                            onChange={handleNewItemChange}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                        <label className="form-label">Deskripsi</label>
+                                        <textarea
+                                            name="description"
+                                            className="form-input"
+                                            rows="2"
+                                            placeholder="Deskripsi barang (opsional)"
+                                            value={newItemForm.description}
+                                            onChange={handleNewItemChange}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowNewItemModal(false)}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={isCreatingItem}>
+                                    {isCreatingItem ? (
+                                        <><Loader size={16} className="animate-spin" /> Menyimpan...</>
+                                    ) : (
+                                        <><Save size={16} /> Simpan Item Baru</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== New Category Modal ===== */}
+            {showNewCategoryModal && (
+                <div className="modal-overlay" onClick={() => setShowNewCategoryModal(false)} style={{ zIndex: 1100 }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ zIndex: 1101 }}>
+                        <div className="modal-header">
+                            <h3><Layers size={20} style={{ marginRight: 'var(--spacing-2)' }} /> Kategori Baru</h3>
+                            <button className="modal-close" onClick={() => setShowNewCategoryModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateCategory}>
+                            <div className="modal-body">
+                                {newCategoryError && (
+                                    <div className="alert alert-danger" style={{ marginBottom: 'var(--spacing-4)' }}>
+                                        {newCategoryError}
+                                    </div>
+                                )}
+                                <div className="form-group">
+                                    <label className="form-label">Nama Kategori *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Masukkan nama kategori"
+                                        value={newCategoryForm.name}
+                                        onChange={(e) => setNewCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="form-group" style={{ marginTop: 'var(--spacing-3)' }}>
+                                    <label className="form-label">Deskripsi</label>
+                                    <textarea
+                                        className="form-input"
+                                        rows="2"
+                                        placeholder="Deskripsi kategori (opsional)"
+                                        value={newCategoryForm.description}
+                                        onChange={(e) => setNewCategoryForm(prev => ({ ...prev, description: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowNewCategoryModal(false)}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={isCreatingCategory}>
+                                    {isCreatingCategory ? (
+                                        <><Loader size={16} className="animate-spin" /> Menyimpan...</>
+                                    ) : (
+                                        <><Plus size={16} /> Tambah Kategori</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -62,7 +62,6 @@ export default function Header({ onMenuClick, collapsed }) {
                         <div className="dropdown-menu notifications-dropdown">
                             <div className="dropdown-header">
                                 <h4>Notifikasi</h4>
-                                <button className="text-btn">Tandai semua dibaca</button>
                             </div>
                             <div className="dropdown-body">
                                 {notifications.map((notif) => (
@@ -73,9 +72,6 @@ export default function Header({ onMenuClick, collapsed }) {
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-                            <div className="dropdown-footer">
-                                <Link to="/notifications">Lihat semua notifikasi</Link>
                             </div>
                         </div>
                     )}

@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import {
     Search,
     Plus,
-    Download,
-    Filter,
+    ArrowUpFromLine,
     MoreVertical,
     Eye,
     Edit,
@@ -17,7 +16,10 @@ import {
     Printer,
     FileText,
     Loader,
+    X,
+    Save,
 } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import { itemService, categoryService, locationService } from '../../services';
 import './InventoryList.css';
 
@@ -34,6 +36,7 @@ const getItemIcon = (item) => {
 export default function InventoryList() {
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [locations, setLocations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -43,31 +46,43 @@ export default function InventoryList() {
     const [selectedItems, setSelectedItems] = useState([]);
     const [showActions, setShowActions] = useState(null);
 
+    // Edit Modal State
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editItem, setEditItem] = useState(null);
+    const [editForm, setEditForm] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+
+    // QR Modal State
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [qrItem, setQrItem] = useState(null);
+
     const [pagination, setPagination] = useState({
         page: 1,
-        perPage: 10,
+        perPage: 5,
         total: 0,
         lastPage: 1,
     });
 
     const hasFetched = useRef(false);
 
-    // Fetch categories on mount
+    // Fetch categories and locations on mount
     useEffect(() => {
         if (hasFetched.current) return;
         hasFetched.current = true;
 
-        const fetchCategories = async () => {
+        const fetchMasterData = async () => {
             try {
-                const res = await categoryService.getAll();
-                if (res.success) {
-                    setCategories(res.data || []);
-                }
+                const [catRes, locRes] = await Promise.all([
+                    categoryService.getAll().catch(() => ({ success: false })),
+                    locationService.getAll().catch(() => ({ success: false })),
+                ]);
+                if (catRes.success) setCategories(catRes.data || []);
+                if (locRes.success) setLocations(locRes.data?.data || locRes.data || []);
             } catch (err) {
-                console.error('Error fetching categories:', err);
+                console.error('Error fetching master data:', err);
             }
         };
-        fetchCategories();
+        fetchMasterData();
     }, []);
 
     // Fetch items when filters change
@@ -84,7 +99,8 @@ export default function InventoryList() {
 
                 if (searchQuery) params.search = searchQuery;
                 if (selectedCategory) params.category_id = selectedCategory;
-                if (selectedStatus === 'Low Stock') params.low_stock = true;
+                if (selectedStatus === 'Low Stock') params.status = 'low';
+                if (selectedStatus === 'Available') params.status = 'available';
 
                 const res = await itemService.getAll(params);
 
@@ -152,29 +168,86 @@ export default function InventoryList() {
         setSearchQuery('');
     };
 
+    // Refresh items after edit
+    const refreshItems = () => {
+        setPagination(prev => ({ ...prev, page: prev.page }));
+    };
+
+    // Edit handlers
+    const handleEditClick = (item) => {
+        setEditItem(item);
+        setEditForm({
+            name: item.name || '',
+            sku: item.sku || '',
+            category_id: item.category_id || '',
+            location_id: item.location_id || '',
+            type: item.type || 'consumable',
+            stock: item.stock || 0,
+            min_stock: item.min_stock || 0,
+            unit: item.unit || 'pcs',
+            price: item.price || 0,
+            description: item.description || '',
+        });
+        setShowEditModal(true);
+        setShowActions(null);
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const res = await itemService.update(editItem.id, editForm);
+            if (res.success) {
+                setShowEditModal(false);
+                setEditItem(null);
+                // Re-fetch items
+                const params = { page: pagination.page, per_page: pagination.perPage };
+                if (searchQuery) params.search = searchQuery;
+                if (selectedCategory) params.category_id = selectedCategory;
+                if (selectedStatus === 'Low Stock') params.status = 'low';
+                if (selectedStatus === 'Available') params.status = 'available';
+                const refetchRes = await itemService.getAll(params);
+                if (refetchRes.success) {
+                    const itemsData = refetchRes.data.data || refetchRes.data || [];
+                    setItems(itemsData.map(it => ({ ...it, icon: getItemIcon(it) })));
+                }
+            }
+        } catch (err) {
+            console.error('Error updating item:', err);
+            alert('Gagal menyimpan perubahan');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // QR handler
+    const handleShowQR = (item) => {
+        setQrItem(item);
+        setShowQRModal(true);
+        setShowActions(null);
+    };
+
     return (
         <div className="inventory-page">
             {/* Page Header */}
             <div className="page-header">
                 <div>
-                    <h1>D'Inventory</h1>
+                    <h1>Semua Barang</h1>
                     <div className="breadcrumb">
                         <Link to="/">Home</Link>
-                        <span>/</span>
-                        <span>D'Inventory</span>
                         <span>/</span>
                         <span>Semua Barang</span>
                     </div>
                 </div>
                 <div className="header-actions">
-                    <button className="btn btn-secondary">
-                        <Download size={18} />
-                        Export
-                    </button>
-                    <button className="btn btn-primary">
+                    <Link to="/transactions/outbound" className="btn btn-secondary">
+                        <ArrowUpFromLine size={18} />
+                        Ambil Barang
+                    </Link>
+                    <Link to="/transactions/inbound" className="btn btn-primary">
                         <Plus size={18} />
                         Tambah Barang
-                    </button>
+                    </Link>
                 </div>
             </div>
 
@@ -215,31 +288,8 @@ export default function InventoryList() {
                                 </option>
                             ))}
                         </select>
-                        <button className="btn btn-ghost">
-                            <Filter size={18} />
-                            More Filters
-                        </button>
                     </div>
                 </div>
-                {(selectedCategory || selectedStatus) && (
-                    <div className="active-filters">
-                        {selectedCategory && (
-                            <span className="filter-tag">
-                                {categories.find(c => c.id == selectedCategory)?.name || 'Kategori'}
-                                <button onClick={() => setSelectedCategory('')}>&times;</button>
-                            </span>
-                        )}
-                        {selectedStatus && (
-                            <span className="filter-tag">
-                                {selectedStatus}
-                                <button onClick={() => setSelectedStatus('')}>&times;</button>
-                            </span>
-                        )}
-                        <button className="clear-filters" onClick={clearFilters}>
-                            Clear All
-                        </button>
-                    </div>
-                )}
             </div>
 
             {/* Error Message */}
@@ -330,11 +380,11 @@ export default function InventoryList() {
                                                             <Eye size={16} />
                                                             View Detail
                                                         </Link>
-                                                        <button className="dropdown-item">
+                                                        <button className="dropdown-item" onClick={() => handleEditClick(item)}>
                                                             <Edit size={16} />
                                                             Edit
                                                         </button>
-                                                        <button className="dropdown-item">
+                                                        <button className="dropdown-item" onClick={() => handleShowQR(item)}>
                                                             <QrCode size={16} />
                                                             Show QR
                                                         </button>
@@ -409,6 +459,174 @@ export default function InventoryList() {
                     </div>
                 </div>
             </div>
+            {/* Edit Item Modal */}
+            {showEditModal && editItem && (
+                <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>✏️ Edit Barang</h3>
+                            <button className="modal-close" onClick={() => setShowEditModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditSubmit}>
+                            <div className="modal-body">
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">Nama Barang *</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={editForm.name}
+                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">SKU</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={editForm.sku}
+                                            onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Kategori *</label>
+                                        <select
+                                            className="form-select"
+                                            value={editForm.category_id}
+                                            onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Pilih Kategori</option>
+                                            {categories.map(cat => (
+                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Lokasi *</label>
+                                        <select
+                                            className="form-select"
+                                            value={editForm.location_id}
+                                            onChange={(e) => setEditForm({ ...editForm, location_id: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Pilih Lokasi</option>
+                                            {locations.map(loc => (
+                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Tipe</label>
+                                        <select
+                                            className="form-select"
+                                            value={editForm.type}
+                                            onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                                        >
+                                            <option value="consumable">Consumable</option>
+                                            <option value="asset">Asset</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Satuan</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={editForm.unit}
+                                            onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Stok</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={editForm.stock}
+                                            onChange={(e) => setEditForm({ ...editForm, stock: parseInt(e.target.value) || 0 })}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Stok Minimum</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={editForm.min_stock}
+                                            onChange={(e) => setEditForm({ ...editForm, min_stock: parseInt(e.target.value) || 0 })}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Harga</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={editForm.price}
+                                            onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                        <label className="form-label">Deskripsi</label>
+                                        <textarea
+                                            className="form-input"
+                                            rows="3"
+                                            value={editForm.description}
+                                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                                    {isSaving ? (
+                                        <><Loader size={16} className="animate-spin" /> Menyimpan...</>
+                                    ) : (
+                                        <><Save size={16} /> Simpan Perubahan</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* QR Code Modal */}
+            {showQRModal && qrItem && (
+                <div className="modal-overlay" onClick={() => setShowQRModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>📱 QR Code</h3>
+                            <button className="modal-close" onClick={() => setShowQRModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-4)' }}>
+                            <div className="qr-code-display">
+                                <QRCode
+                                    value={`INVT-ASSET-${qrItem.sku || qrItem.id}-${qrItem.serial_number || qrItem.id}`}
+                                    size={200}
+                                />
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                                <h4 style={{ marginBottom: 'var(--spacing-1)' }}>{qrItem.name}</h4>
+                                <code className="sku-code">{qrItem.sku || `ITM-${qrItem.id}`}</code>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary" onClick={() => setShowQRModal(false)}>
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

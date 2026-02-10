@@ -94,10 +94,10 @@ export default function Outbound() {
 
         try {
             const res = await transactionService.create({
-                type: 'out',
+                type: 'outbound',
                 item_id: parseInt(formData.item_id),
                 quantity: parseInt(formData.quantity),
-                assigned_to: formData.assigned_to ? parseInt(formData.assigned_to) : null,
+                user_id: formData.assigned_to ? parseInt(formData.assigned_to) : null,
                 purpose: formData.purpose || null,
                 duration: formData.duration || null,
                 notes: formData.notes || null,
@@ -213,12 +213,6 @@ export default function Outbound() {
                             >
                                 <Scan size={18} />
                                 Mulai Scan
-                            </button>
-                            <div className="divider">
-                                <span>atau</span>
-                            </div>
-                            <button className="btn btn-secondary btn-block">
-                                Input Manual
                             </button>
                         </div>
                     </div>

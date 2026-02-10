@@ -275,4 +275,212 @@ export const reportService = {
         const response = await api.get('/reports/assets');
         return response.data;
     },
+
+    // Download report as CSV or PDF
+    download: async (type, format = 'csv') => {
+        try {
+            let data = [];
+            let filename = '';
+            let headers = [];
+            let title = '';
+
+            const today = new Date().toISOString().split('T')[0];
+
+            switch (type) {
+                case 'stock':
+                    // Fetch all items for stock report
+                    const stockRes = await api.get('/items', { params: { per_page: 1000 } });
+                    if (stockRes.data?.success) {
+                        const items = stockRes.data.data?.data || stockRes.data.data || [];
+                        headers = ['No', 'Nama Barang', 'SKU', 'Kategori', 'Lokasi', 'Stok', 'Min Stok', 'Status'];
+                        data = items.map((item, idx) => [
+                            idx + 1,
+                            item.name || '-',
+                            item.sku || '-',
+                            item.category?.name || '-',
+                            item.location?.name || '-',
+                            item.stock || 0,
+                            item.min_stock || 0,
+                            item.stock <= item.min_stock ? 'Low Stock' : 'Available'
+                        ]);
+                        filename = `laporan_stok_${today}`;
+                        title = 'Laporan Stok Barang';
+                    }
+                    break;
+
+                case 'transactions':
+                    // Fetch all transactions
+                    const transRes = await api.get('/transactions', { params: { per_page: 1000 } });
+                    if (transRes.data?.success) {
+                        const transactions = transRes.data.data?.data || transRes.data.data || [];
+                        headers = ['No', 'Tanggal', 'Tipe', 'Barang', 'Jumlah', 'User', 'Keterangan'];
+                        data = transactions.map((tx, idx) => [
+                            idx + 1,
+                            tx.created_at ? new Date(tx.created_at).toLocaleDateString('id-ID') : '-',
+                            tx.type === 'inbound' ? 'Masuk' : 'Keluar',
+                            tx.item?.name || '-',
+                            tx.quantity || 0,
+                            tx.user?.name || tx.staff?.name || '-',
+                            tx.notes || tx.purpose || '-'
+                        ]);
+                        filename = `laporan_transaksi_${today}`;
+                        title = 'Laporan Transaksi';
+                    }
+                    break;
+
+                case 'assets':
+                    // Fetch assets (items with type=asset)
+                    const assetRes = await api.get('/items', { params: { type: 'asset', per_page: 1000 } });
+                    if (assetRes.data?.success) {
+                        const assets = assetRes.data.data?.data || assetRes.data.data || [];
+                        headers = ['No', 'Nama Aset', 'SKU', 'Serial Number', 'Kategori', 'Lokasi', 'Status'];
+                        data = assets.map((asset, idx) => [
+                            idx + 1,
+                            asset.name || '-',
+                            asset.sku || '-',
+                            asset.serial_number || '-',
+                            asset.category?.name || '-',
+                            asset.location?.name || '-',
+                            asset.status || 'Available'
+                        ]);
+                        filename = `laporan_aset_${today}`;
+                        title = 'Laporan Aset';
+                    }
+                    break;
+
+                default:
+                    throw new Error('Tipe laporan tidak valid');
+            }
+
+
+            if (format === 'pdf') {
+                // Generate PDF
+                await generatePDF(headers, data, filename, title);
+            } else {
+                // Generate Excel file
+                await generateExcel(headers, data, filename, title);
+            }
+
+            return { success: true, message: 'Laporan berhasil diunduh' };
+        } catch (error) {
+            console.error('Error downloading report:', error);
+            throw error;
+        }
+    },
+};
+
+// Helper function to generate Excel file
+const generateExcel = async (headers, data, filename, title) => {
+    // Dynamic import for xlsx
+    const XLSX = await import('xlsx');
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+
+    // Prepare data with headers
+    const wsData = [headers, ...data];
+
+    // Create worksheet from data
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Set column widths
+    const colWidths = headers.map((header, idx) => {
+        // Calculate max width based on header and data
+        let maxWidth = header.length;
+        data.forEach(row => {
+            const cellValue = String(row[idx] || '');
+            if (cellValue.length > maxWidth) {
+                maxWidth = cellValue.length;
+            }
+        });
+        return { wch: Math.min(maxWidth + 2, 50) }; // Add padding, max 50 chars
+    });
+    ws['!cols'] = colWidths;
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, title || 'Laporan');
+
+    // Generate Excel file and trigger download
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+};
+
+// Helper function to generate PDF
+const generatePDF = async (headers, data, filename, title) => {
+    // Dynamic import for jsPDF
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    // Add title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, 14, 15);
+
+    // Add date
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    })}`, 14, 22);
+
+    // Add table
+    autoTable(doc, {
+        head: [headers],
+        body: data,
+        startY: 28,
+        theme: 'grid',
+        styles: {
+            fontSize: 8,
+            cellPadding: 2,
+        },
+        headStyles: {
+            fillColor: [99, 102, 241], // Primary color
+            textColor: 255,
+            fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+            fillColor: [245, 247, 250],
+        },
+        columnStyles: {
+            0: { cellWidth: 10 }, // No
+        },
+    });
+
+    // Add footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128);
+        doc.text(
+            `Halaman ${i} dari ${pageCount} | D'Inventory System`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+        );
+    }
+
+    // Save the PDF
+    doc.save(`${filename}.pdf`);
+};
+
+// Helper function to download file
+const downloadFile = (content, filename, mimeType) => {
+    const blob = new Blob(['\ufeff' + content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 };
